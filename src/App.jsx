@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { categories, quizzes } from './data/quizzes.js'
-import { addLead, claimPrize, clearLeads, leadsCsv, readLeads, updateLead } from './leads.js'
+import {
+  addLead,
+  claimPrize,
+  clearLeads,
+  leadsCsv,
+  readLeads,
+  readPlayed,
+  savePlayed,
+  updateLead,
+} from './leads.js'
 import logoCream from './assets/logo-cream.png'
 
 const LETTERS = ['a', 'b', 'c', 'd', 'e']
@@ -463,7 +472,7 @@ function PrizeCode({ prize, code, hint }) {
   )
 }
 
-function Result({ quiz, results, prize, onRestart }) {
+function Result({ quiz, results, prize }) {
   const scoredResults = results.filter((r) => r !== null)
   const scored = scoredResults.length
   const score = scoredResults.filter(Boolean).length
@@ -571,21 +580,20 @@ function Result({ quiz, results, prize, onRestart }) {
           )}
         </p>
       </section>
-      <button className="btn btn-yolk" onClick={onRestart}>
-        Play again
-      </button>
     </main>
   )
 }
 
 export default function App() {
-  const [screen, setScreen] = useState('home')
-  const [quizId, setQuizId] = useState(null)
-  const [results, setResults] = useState([])
+  // a device that already finished a quiz goes straight back to its result
+  const [played] = useState(readPlayed)
+  const [screen, setScreen] = useState(played?.results ? 'result' : 'home')
+  const [quizId, setQuizId] = useState(played?.results ? played.quizId : null)
+  const [results, setResults] = useState(played?.results || [])
   const [player, setPlayer] = useState(null)
   const [leadId, setLeadId] = useState(null)
-  const [prize, setPrize] = useState({ status: 'loading' })
-  const prizeFor = useRef(null)
+  const [prize, setPrize] = useState(played?.prize || { status: 'loading' })
+  const retried = useRef(false)
   const [hash, setHash] = useState(window.location.hash)
 
   useEffect(() => {
@@ -593,6 +601,24 @@ export default function App() {
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+
+  // finished before but the codes never arrived (offline, closed the tab): ask again
+  useEffect(() => {
+    if (retried.current || !played?.results || played.prize?.status === 'ready') return
+    retried.current = true
+    fetchPrize(played.leadId, played.score)
+  }, [played])
+
+  function fetchPrize(id, score) {
+    setPrize({ status: 'loading' })
+    claimPrize(id, score)
+      .then((codes) => {
+        const ready = { status: 'ready', ...codes }
+        setPrize(ready)
+        savePlayed({ prize: ready })
+      })
+      .catch(() => setPrize({ status: 'error' }))
+  }
 
   const quiz = quizId ? quizzes[quizId] : null
 
@@ -633,13 +659,9 @@ export default function App() {
           const scored = finalResults.filter((r) => r !== null)
           const score = `${scored.filter(Boolean).length}/${scored.length}`
           updateLead(leadId, { score })
+          savePlayed({ quizId, leadId, score, results: finalResults })
           setResults(finalResults)
-          // ignore a late answer if they have already moved on to another quiz
-          setPrize({ status: 'loading' })
-          prizeFor.current = leadId
-          claimPrize(leadId, score)
-            .then((codes) => prizeFor.current === leadId && setPrize({ status: 'ready', ...codes }))
-            .catch(() => prizeFor.current === leadId && setPrize({ status: 'error' }))
+          fetchPrize(leadId, score)
           go('result')
         }}
       />
@@ -647,7 +669,7 @@ export default function App() {
   }
 
   if (screen === 'result') {
-    return <Result quiz={quiz} results={results} prize={prize} onRestart={() => go('home')} />
+    return <Result quiz={quiz} results={results} prize={prize} />
   }
 
   return (

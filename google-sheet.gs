@@ -7,8 +7,11 @@
 //   SHOPIFY_CLIENT_SECRET  client secret of that app
 // (or SHOPIFY_TOKEN instead of the client ID/secret if you have an old-style shpat_ admin token)
 // After changing this file, use Deploy > Manage deployments > Edit > New version so the live URL picks it up.
+//
+// Stats: run setupStats once from the editor. It builds the "Stats" tab (live formulas + charts)
+// and starts an hourly check that marks which egg codes were used on the website.
 
-const HEADERS = ['ID', 'Time', 'Name', 'Phone', 'Product', 'Score', 'Egg code', 'Tour code', 'Codes expire']
+const HEADERS = ['ID', 'Time', 'Name', 'Phone', 'Product', 'Score', 'Egg code', 'Tour code', 'Codes expire', 'Egg code used']
 
 const TOUR_SCORE = 3 // same as TOUR_SCORE in src/App.jsx
 const CODE_HOURS = 24
@@ -157,4 +160,151 @@ function randomCode() {
 
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON)
+}
+
+// ---------- Stats ----------
+
+const GREEN = '#004d30'
+const YOLK = '#f2a325'
+const TINT = '#ffedcf'
+
+function setupStats() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet()
+  const leads = ss.getSheets()[0]
+  leads.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS])
+  styleLeads(leads)
+
+  let stats = ss.getSheetByName('Stats')
+  if (stats) {
+    stats.getCharts().forEach((c) => stats.removeChart(c))
+    stats.clear()
+  } else {
+    stats = ss.insertSheet('Stats', ss.getNumSheets()) // keep the leads tab first
+  }
+
+  const L = `'${leads.getName()}'!`
+  const right = `IFERROR(VALUE(REGEXEXTRACT(${L}F2:F,"^\d+")),"")` // "4/5" -> 4
+  const outOf = `IFERROR(VALUE(REGEXEXTRACT(${L}F2:F,"\d+$")),"")` // "4/5" -> 5
+
+  stats.setHiddenGridlines(true)
+  stats.setColumnWidth(1, 24)
+  stats.setColumnWidths(2, 8, 150)
+
+  stats.getRange('B2').setValue('Legit Farms quiz: stats').setFontSize(20).setFontWeight('bold').setFontColor(GREEN)
+  stats.getRange('B3').setFormula('="Updated live · last checked "&TEXT(NOW(),"d mmm, h:mm am/pm")').setFontColor('#777')
+
+  // KPI cards: label on top, big number under it
+  const cards = [
+    ['Players', `=COUNTA(${L}C2:C)`],
+    ['Unique numbers', `=COUNTUNIQUE(${L}D2:D)`],
+    ['Finished quiz', `=COUNTIF(${L}F2:F,"?*")`],
+    ['Finish rate', '=IFERROR(F6/B6,0)', '0%'],
+    ['Average score', `=IFERROR(AVERAGE(ARRAYFORMULA(${right})),0)`, '0.0'],
+    ['Perfect scores', `=SUMPRODUCT((ARRAYFORMULA(${right})<>"")*(ARRAYFORMULA(${right})=ARRAYFORMULA(${outOf})))`],
+    ['Played today', `=COUNTIFS(${L}B2:B,">="&TODAY())`],
+    ['Egg codes given', `=COUNTIF(${L}G2:G,"EGG-*")`],
+    ['Farm tours won', `=COUNTIF(${L}H2:H,"TOUR-*")`],
+    ['Egg codes used', `=COUNTIF(${L}J2:J,"Yes")`],
+    ['Code use rate', '=IFERROR(D12/H9,0)', '0%'],
+    ['Codes still live', `=COUNTIFS(${L}I2:I,">"&NOW(),${L}J2:J,"<>Yes")`],
+  ]
+  cards.forEach(([label, formula, format], i) => {
+    const col = 2 + (i % 4) * 2
+    const row = 5 + Math.floor(i / 4) * 3
+    const labelCell = stats.getRange(row, col, 1, 2).merge()
+    const valueCell = stats.getRange(row + 1, col, 1, 2).merge()
+    labelCell.setValue(label).setFontColor(GREEN).setFontWeight('bold').setFontSize(10)
+    valueCell.setFormula(formula).setFontSize(22).setFontWeight('bold').setFontColor(GREEN)
+    if (format) valueCell.setNumberFormat(format)
+    stats.getRange(row, col, 2, 2).setBackground(TINT).setHorizontalAlignment('center')
+      .setBorder(true, true, true, true, false, false, YOLK, SpreadsheetApp.BorderStyle.SOLID_MEDIUM)
+  })
+  // rates above read B6 (players), F6 (finished), H9 (codes given), D12 (codes used)
+
+  // score breakdown 0..5
+  header(stats.getRange('B15:C15'), ['Score', 'Players'])
+  const scores = [0, 1, 2, 3, 4, 5].map((n) => [`${n} right`, `=COUNTIF(${L}F2:F,"${n}/*")`])
+  stats.getRange(16, 2, scores.length, 2).setValues(scores)
+
+  // players per day
+  header(stats.getRange('E15:F15'), ['Day', 'Players'])
+  stats.getRange('E16').setFormula(
+    `=IFERROR(QUERY({ARRAYFORMULA(IF(${L}B2:B="",,INT(${L}B2:B)))},` +
+      `"select Col1, count(Col1) where Col1 is not null group by Col1 label Col1 '', count(Col1) ''",0),"No players yet")`
+  )
+  stats.getRange('E16:E400').setNumberFormat('d mmm')
+
+  // quizzes played
+  header(stats.getRange('H15:I15'), ['Quiz', 'Players'])
+  stats.getRange('H16').setFormula(
+    `=IFERROR(QUERY({${L}E2:E},"select Col1, count(Col1) where Col1 <> '' group by Col1 label Col1 '', count(Col1) ''",0),"No players yet")`
+  )
+
+  addChart(stats, Charts.ChartType.COLUMN, stats.getRange('B15:C21'), 'Score breakdown', 23, 2, YOLK)
+  addChart(stats, Charts.ChartType.COLUMN, stats.getRange('E15:F60'), 'Players per day', 23, 6, GREEN)
+
+  installSyncTrigger()
+  syncRedemptions()
+}
+
+function header(range, labels) {
+  range.setValues([labels]).setBackground(GREEN).setFontColor('#ffffff').setFontWeight('bold')
+}
+
+function addChart(sheet, type, range, title, row, col, color) {
+  sheet.insertChart(
+    sheet.newChart()
+      .setChartType(type)
+      .addRange(range)
+      .setNumHeaders(1)
+      .setPosition(row, col, 0, 0)
+      .setOption('title', title)
+      .setOption('legend', { position: 'none' })
+      .setOption('colors', [color])
+      .setOption('width', 520)
+      .setOption('height', 300)
+      .build()
+  )
+}
+
+function styleLeads(sheet) {
+  sheet.setFrozenRows(1)
+  sheet.getRange(1, 1, 1, HEADERS.length).setBackground(GREEN).setFontColor('#ffffff').setFontWeight('bold')
+  sheet.getRange('B2:B').setNumberFormat('d mmm yyyy, h:mm am/pm')
+  sheet.getRange('I2:I').setNumberFormat('d mmm, h:mm am/pm')
+  sheet.hideColumns(1) // the ID is only for matching rows
+}
+
+function installSyncTrigger() {
+  ScriptApp.getProjectTriggers()
+    .filter((t) => t.getHandlerFunction() === 'syncRedemptions')
+    .forEach((t) => ScriptApp.deleteTrigger(t))
+  ScriptApp.newTrigger('syncRedemptions').timeBased().everyHours(1).create()
+}
+
+// Marks "Egg code used" = Yes once Shopify shows the code was used at checkout.
+// Only looks at codes from the last 3 days, since older ones have expired.
+function syncRedemptions() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]
+  const last = sheet.getLastRow()
+  if (last < 2) return
+  const rows = sheet.getRange(2, 1, last - 1, HEADERS.length).getValues()
+  const since = Date.now() - 3 * 24 * 3600 * 1000
+  const todo = []
+  rows.forEach((r, i) => {
+    if (r[6] && r[9] !== 'Yes' && new Date(r[8]).getTime() > since) todo.push({ row: i + 2, code: r[6] })
+  })
+
+  for (let i = 0; i < todo.length; i += 25) {
+    const chunk = todo.slice(i, i + 25)
+    const fields = chunk
+      .map((t, j) => `c${j}: codeDiscountNodeByCode(code: ${JSON.stringify(t.code)}) { codeDiscount { ... on DiscountCodeBasic { asyncUsageCount } } }`)
+      .join('\n')
+    const data = shopify(`{ ${fields} }`, {}).data || {}
+    chunk.forEach((t, j) => {
+      const node = data['c' + j]
+      const used = node && node.codeDiscount && node.codeDiscount.asyncUsageCount > 0
+      sheet.getRange(t.row, 10).setValue(used ? 'Yes' : 'No')
+    })
+  }
 }

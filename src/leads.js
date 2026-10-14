@@ -66,6 +66,26 @@ export async function claimPrize(id, score) {
   return prize
 }
 
+// One quiz per device: once someone finishes, their result (and prize) is kept here
+// and shown again instead of letting them play another round.
+const PLAYED_KEY = 'legit-quiz-played'
+
+export function readPlayed() {
+  try {
+    return JSON.parse(localStorage.getItem(PLAYED_KEY))
+  } catch {
+    return null
+  }
+}
+
+export function savePlayed(patch) {
+  try {
+    localStorage.setItem(PLAYED_KEY, JSON.stringify({ ...readPlayed(), ...patch }))
+  } catch {
+    // storage blocked: the lock just won't survive a reload
+  }
+}
+
 export function clearLeads() {
   writeLeads([])
 }
