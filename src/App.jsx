@@ -447,7 +447,12 @@ function formatExpiry(iso) {
   })
 }
 
-function PrizeCode({ prize, code, hint }) {
+// Shopify cart link: puts one 6 pcs pack in the cart, applies the code and opens checkout
+const EGG_VARIANT_ID = '45718472196165'
+const eggCheckoutUrl = (code) =>
+  `https://www.legitfarms.com/cart/${EGG_VARIANT_ID}:1?discount=${encodeURIComponent(code)}`
+
+function PrizeCode({ prize, code, hint, useUrl }) {
   const [copied, setCopied] = useState(false)
   if (prize.status === 'loading') return <div className="prize-code is-loading" aria-hidden="true" />
   if (prize.status !== 'ready' || !code) return null
@@ -467,6 +472,11 @@ function PrizeCode({ prize, code, hint }) {
           {copied ? 'Copied!' : 'Copy'}
         </button>
       </div>
+      {useUrl && (
+        <a className="prize-use-btn" href={useUrl(code)} target="_blank" rel="noopener">
+          Use now <span aria-hidden="true">&rarr;</span>
+        </a>
+      )}
       <small className="prize-hint">{hint}</small>
     </div>
   )
@@ -564,7 +574,12 @@ function Result({ quiz, results, prize }) {
               </span>
               <span className="prize-badge">×6</span>
             </div>
-            <PrizeCode prize={prize} code={prize.eggCode} hint="Use this code at checkout on legitfarms.com" />
+            <PrizeCode
+              prize={prize}
+              code={prize.eggCode}
+              hint="Code is applied for you, or enter it at checkout on legitfarms.com"
+              useUrl={eggCheckoutUrl}
+            />
           </li>
         </ul>
         <p className="prize-foot">

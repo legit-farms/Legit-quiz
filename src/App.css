@@ -924,6 +924,26 @@ p {
   font-weight: 600;
 }
 
+.prize-use-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  border-radius: 99px;
+  background: var(--yolk);
+  color: var(--green-deep);
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  box-shadow: 0 10px 20px -12px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+
+.prize-use-btn:active {
+  transform: scale(0.97);
+}
+
 .prize-code.is-loading {
   border-color: transparent;
   background: linear-gradient(90deg, var(--green-tint) 25%, #f3faf6 50%, var(--green-tint) 75%) 0 0 / 200% 100%;
