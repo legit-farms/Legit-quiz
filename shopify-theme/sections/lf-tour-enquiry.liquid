@@ -1,0 +1,238 @@
+{%- comment -%}
+  LF Tour Enquiry a branded booking/enquiry form built on Shopify's native
+  contact form, so submissions are emailed to your store contact email
+  (Settings > Notifications). Includes a side panel with direct contact details.
+  Anchor: #farm-tour-enquire (pricing buttons scroll here).
+  Quiz prize: ?tour_code=TOUR-XXXXXX fills "Anything else we should know?" with the prize code.
+{%- endcomment -%}
+
+{%- assign s = section.settings -%}
+{%- assign uid = section.id -%}
+{%- assign types = s.visitor_types | newline_to_br | split: '<br />' -%}
+
+<style>
+  .lfte2-{{ uid }} { background:{{ s.bg_color }}; color:{{ s.ink_color }}; padding:clamp(56px,8vw,104px) clamp(20px,5vw,44px); scroll-margin-top:90px; }
+  .lfte2-{{ uid }} .lfte2-wrap { max-width:1120px; margin-inline:auto; display:grid; grid-template-columns:0.9fr 1.1fr; gap:clamp(24px,4vw,52px); align-items:start; }
+  .lfte2-{{ uid }} .lfte2-kicker { display:inline-block; font-size:12.5px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:{{ s.gold_color }}; margin-bottom:12px; }
+  .lfte2-{{ uid }} .lfte2-title { font-family:var(--font-h1--family,inherit); font-weight:800; font-size:clamp(28px,4vw,46px); line-height:1.03; letter-spacing:-.03em; margin:0; }
+  .lfte2-{{ uid }} .lfte2-intro { margin:16px 0 0; font-size:clamp(15px,1.7vw,18px); line-height:1.6; opacity:.85; }
+  .lfte2-{{ uid }} .lfte2-contacts { list-style:none; margin:28px 0 0; padding:0; display:flex; flex-direction:column; gap:14px; }
+  .lfte2-{{ uid }} .lfte2-contacts li { display:flex; gap:12px; align-items:flex-start; font-size:15px; line-height:1.4; }
+  .lfte2-{{ uid }} .lfte2-contacts .ic { font-size:18px; line-height:1.4; }
+  .lfte2-{{ uid }} .lfte2-contacts a { color:inherit; text-decoration:underline; text-underline-offset:3px; }
+
+  .lfte2-{{ uid }} .lfte2-formcard { background:#fff; color:#16352A; border-radius:24px; padding:clamp(22px,3vw,34px); box-shadow:0 20px 50px rgba(0,0,0,.16); }
+  .lfte2-{{ uid }} .lfte2-ok { background:color-mix(in srgb,{{ s.gold_color }} 20%,#fff); border:1px solid {{ s.gold_color }}; color:#4a3608; border-radius:14px; padding:16px 18px; font-weight:600; margin-bottom:18px; }
+  .lfte2-{{ uid }} .lfte2-err { background:#fdecec; border:1px solid #e6a3a3; color:#8a1f1f; border-radius:14px; padding:14px 16px; margin-bottom:18px; font-size:14px; }
+  .lfte2-{{ uid }} .lfte2-prize { background:color-mix(in srgb,{{ s.gold_color }} 16%,#fff); border:1.5px dashed {{ s.gold_color }}; color:#16352A; border-radius:14px; padding:14px 16px; margin-bottom:18px; font-size:14px; line-height:1.45; }
+  .lfte2-{{ uid }} .lfte2-prize strong { color:{{ s.accent_color }}; letter-spacing:.04em; }
+  .lfte2-{{ uid }} .lfte2-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .lfte2-{{ uid }} .lfte2-field { margin-bottom:14px; }
+  .lfte2-{{ uid }} .lfte2-field.full { grid-column:1 / -1; }
+  .lfte2-{{ uid }} label { display:block; font-size:13px; font-weight:700; margin-bottom:6px; color:#16352A; }
+  .lfte2-{{ uid }} label .req { color:#c0392b; }
+  .lfte2-{{ uid }} input, .lfte2-{{ uid }} select, .lfte2-{{ uid }} textarea {
+    width:100%; box-sizing:border-box; padding:12px 14px; font-size:15px; font-family:inherit; color:#16352A;
+    background:#fbf6ea; border:1.5px solid #e3dcc7; border-radius:12px; transition:border-color .18s ease, box-shadow .18s ease; }
+  .lfte2-{{ uid }} input:focus, .lfte2-{{ uid }} select:focus, .lfte2-{{ uid }} textarea:focus {
+    outline:none; border-color:{{ s.accent_color }}; box-shadow:0 0 0 3px color-mix(in srgb,{{ s.accent_color }} 18%,transparent); }
+  .lfte2-{{ uid }} textarea { min-height:110px; resize:vertical; }
+  .lfte2-{{ uid }} .lfte2-submit { width:100%; margin-top:6px; padding:15px 24px; font-size:16px; font-weight:800; color:#fff; background:{{ s.accent_color }}; border:none; border-radius:100px; cursor:pointer; transition:transform .2s ease, filter .2s ease; }
+  .lfte2-{{ uid }} .lfte2-submit:hover { transform:translateY(-2px); filter:brightness(1.06); }
+  .lfte2-{{ uid }} .lfte2-tiny { margin:12px 0 0; font-size:12px; opacity:.6; color:#16352A; text-align:center; }
+  @media (max-width:820px){ .lfte2-{{ uid }} .lfte2-wrap { grid-template-columns:1fr; } .lfte2-{{ uid }} .lfte2-row { grid-template-columns:1fr; } }
+</style>
+
+<section id="farm-tour-enquire" class="lfte2-{{ uid }}">
+  <div class="lfte2-wrap">
+    <div class="lfte2-info">
+      {% if s.kicker != blank %}<span class="lfte2-kicker">{{ s.kicker }}</span>{% endif %}
+      {% if s.title != blank %}<h2 class="lfte2-title">{{ s.title }}</h2>{% endif %}
+      {% if s.intro != blank %}<p class="lfte2-intro">{{ s.intro }}</p>{% endif %}
+      <ul class="lfte2-contacts">
+        {% if s.phone != blank %}<li><span class="ic">📞</span><span><strong>Call / WhatsApp</strong><br><a href="tel:{{ s.phone | replace: ' ', '' }}">{{ s.phone }}</a></span></li>{% endif %}
+        {% if s.email != blank %}<li><span class="ic">✉️</span><span><strong>Email</strong><br><a href="mailto:{{ s.email }}">{{ s.email }}</a></span></li>{% endif %}
+        {% if s.hours != blank %}<li><span class="ic">🕒</span><span><strong>Tour timings</strong><br>{{ s.hours }}</span></li>{% endif %}
+        {% if s.address != blank %}<li><span class="ic">📍</span><span><strong>Farm location</strong><br>{{ s.address }}</span></li>{% endif %}
+      </ul>
+    </div>
+
+    <div class="lfte2-formcard">
+      <form id="farm-tour-form-{{ uid }}" novalidate>
+        <div class="lfte2-ok" data-ft-ok hidden>{{ s.success_message | default: "Thanks! We've got your enquiry and will reach out shortly to confirm your farm tour." }}</div>
+        <div class="lfte2-err" data-ft-err hidden></div>
+        <div class="lfte2-prize" data-ft-prize hidden></div>
+
+        <div class="lfte2-row">
+          <div class="lfte2-field">
+            <label for="ft-name-{{ uid }}">Your name <span class="req">*</span></label>
+            <input type="text" id="ft-name-{{ uid }}" name="visitorName" required minlength="2" maxlength="120">
+          </div>
+          <div class="lfte2-field">
+            <label for="ft-phone-{{ uid }}">Phone / WhatsApp</label>
+            <input type="tel" id="ft-phone-{{ uid }}" name="phone" maxlength="20" placeholder="+91 98765 43210">
+          </div>
+        </div>
+
+        <div class="lfte2-field">
+          <label for="ft-email-{{ uid }}">Email</label>
+          <input type="email" id="ft-email-{{ uid }}" name="email">
+        </div>
+
+        <div class="lfte2-row">
+          <div class="lfte2-field">
+            <label for="ft-type-{{ uid }}">I'm booking as</label>
+            <select id="ft-type-{{ uid }}" name="visitorType">
+              {%- for t in types -%}{%- assign row = t | strip_newlines | strip -%}{%- if row != blank -%}<option value="{{ row | escape }}">{{ row }}</option>{%- endif -%}{%- endfor -%}
+            </select>
+          </div>
+          <div class="lfte2-field">
+            <label for="ft-size-{{ uid }}">Group size <span class="req">*</span></label>
+            <input type="number" id="ft-size-{{ uid }}" name="peopleCount" required min="1" max="1000" step="1" placeholder="e.g. 25">
+          </div>
+        </div>
+
+        <div class="lfte2-row">
+          <div class="lfte2-field">
+            <label for="ft-biz-{{ uid }}">Business / organisation name</label>
+            <input type="text" id="ft-biz-{{ uid }}" name="businessName" maxlength="120">
+          </div>
+          <div class="lfte2-field">
+            <label for="ft-date-{{ uid }}">Preferred visit date <span class="req">*</span></label>
+            <input type="date" id="ft-date-{{ uid }}" name="expectedDate" required>
+          </div>
+        </div>
+
+        <div class="lfte2-field full">
+          <label for="ft-msg-{{ uid }}">Anything else we should know?</label>
+          <textarea id="ft-msg-{{ uid }}" name="notes" maxlength="1000" placeholder="Age group, special requests, questions about fees…"></textarea>
+        </div>
+
+        <button type="submit" class="lfte2-submit" data-ft-submit>{{ s.button_label | default: 'Send my enquiry' }}</button>
+        <p class="lfte2-tiny">{{ s.tiny_note | default: "We'll only use your details to arrange your farm tour." }}</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var form = document.getElementById('farm-tour-form-{{ uid }}');
+    if (!form) return;
+    var endpoint = {{ s.api_endpoint | default: 'https://legitfarms-egg-api.onrender.com/farm-tours' | json }};
+    var okBox = form.querySelector('[data-ft-ok]');
+    var errBox = form.querySelector('[data-ft-err]');
+    var prizeBox = form.querySelector('[data-ft-prize]');
+    var btn = form.querySelector('[data-ft-submit]');
+    var btnText = btn.textContent;
+
+    // Quiz prize: /pages/farm-tour?tour_code=TOUR-XXXXXX fills "Anything else we should know?"
+    var tourCode = new URLSearchParams(location.search).get('tour_code');
+    if (tourCode && /^TOUR-[A-Z0-9]{6}$/.test(tourCode)) {
+      var notesBox = form.elements['notes'];
+      if (notesBox && !notesBox.value) notesBox.value = 'I won the prize: free farm tour. Code: ' + tourCode;
+      prizeBox.innerHTML = '🎉 Your free farm tour code <strong></strong> is added below. Just fill in your details and send.';
+      prizeBox.querySelector('strong').textContent = tourCode;
+      prizeBox.hidden = false;
+    }
+
+    function today() {
+      var d = new Date();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return d.getFullYear() + '-' + m + '-' + day;
+    }
+
+    function val(name) {
+      var el = form.elements[name];
+      return el ? String(el.value || '').trim() : '';
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      errBox.hidden = true;
+      okBox.hidden = true;
+
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+
+      // Fold fields the API doesn't accept (email, booking-as type) into notes so nothing is lost.
+      var extras = [];
+      if (val('email')) extras.push('Email: ' + val('email'));
+      if (val('visitorType')) extras.push('Booking as: ' + val('visitorType'));
+      var notes = val('notes');
+      if (extras.length) notes = (notes ? notes + '\n\n' : '') + extras.join('\n');
+
+      var payload = {
+        enquiryDate: today(),
+        expectedDate: val('expectedDate'),
+        visitorName: val('visitorName'),
+        peopleCount: parseInt(val('peopleCount'), 10)
+      };
+      if (val('phone')) payload.phone = val('phone');
+      if (val('businessName')) payload.businessName = val('businessName');
+      if (notes) payload.notes = notes.slice(0, 1000);
+
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function (res) {
+          return res.text().then(function (text) {
+            var data;
+            try { data = text ? JSON.parse(text) : {}; } catch (_) { data = {}; }
+            if (!res.ok) {
+              var msg = data && (data.message || data.error);
+              if (Array.isArray(msg)) msg = msg.join(', ');
+              throw new Error(msg || ('Request failed (' + res.status + ').'));
+            }
+            return data;
+          });
+        })
+        .then(function () {
+          form.reset();
+          prizeBox.hidden = true;
+          okBox.hidden = false;
+          okBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        })
+        .catch(function (err) {
+          errBox.textContent = err.message || 'Something went wrong. Please try again or call us directly.';
+          errBox.hidden = false;
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = btnText;
+        });
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "LF Tour Enquiry",
+  "settings": [
+    { "type": "text", "id": "kicker", "label": "Kicker", "default": "Book your visit" },
+    { "type": "text", "id": "title", "label": "Title", "default": "Fill the form we'll reach out to you" },
+    { "type": "textarea", "id": "intro", "label": "Intro", "default": "Tell us who's coming and when, and our team will get back to you with available dates, the exact fee for your group, and everything you need to know." },
+    { "type": "textarea", "id": "visitor_types", "label": "Booking-as options (one per line)", "default": "School / educational group\nSociety / residential community\nGym / fitness group\nCorporate / office outing\nIndividual / family\nOther" },
+    { "type": "text", "id": "button_label", "label": "Submit button label", "default": "Send my enquiry" },
+    { "type": "textarea", "id": "success_message", "label": "Success message", "default": "Thanks! We've got your enquiry and will reach out shortly to confirm your farm tour." },
+    { "type": "text", "id": "tiny_note", "label": "Small note under button", "default": "We'll only use your details to arrange your farm tour." },
+    { "type": "text", "id": "api_endpoint", "label": "API endpoint (POST)", "default": "https://legitfarms-egg-api.onrender.com/farm-tours" },
+    { "type": "header", "content": "Direct contact panel" },
+    { "type": "text", "id": "phone", "label": "Phone / WhatsApp" },
+    { "type": "text", "id": "email", "label": "Email" },
+    { "type": "text", "id": "hours", "label": "Tour timings" },
+    { "type": "textarea", "id": "address", "label": "Farm location" },
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "bg_color", "label": "Background", "default": "#16352A" },
+    { "type": "color", "id": "ink_color", "label": "Text on background", "default": "#FFEDCF" },
+    { "type": "color", "id": "accent_color", "label": "Accent (green)", "default": "#004D30" },
+    { "type": "color", "id": "gold_color", "label": "Gold accent", "default": "#F2A325" }
+  ],
+  "presets": [ { "name": "LF Tour Enquiry" } ]
+}
+{% endschema %}

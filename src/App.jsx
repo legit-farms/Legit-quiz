@@ -11,6 +11,7 @@ import {
   updateLead,
 } from './leads.js'
 import logoCream from './assets/logo-cream.png'
+import eggBox from './assets/cat-eggs.png'
 
 const LETTERS = ['a', 'b', 'c', 'd', 'e']
 const RING = 2 * Math.PI * 54
@@ -161,12 +162,24 @@ function Details({ quiz, onSubmit, onBack }) {
 function Home({ player, onChangePlayer, onPick }) {
   return (
     <main className="screen home">
-      <section className="hero">
+      <section className="hero hero-home">
+        <span className="hero-egg hero-egg-1" aria-hidden="true" />
+        <span className="hero-egg hero-egg-2" aria-hidden="true" />
+        <span className="hero-egg hero-egg-3" aria-hidden="true" />
+
         <img className="hero-logo" src={logoCream} alt="Legit Farms - Guaranteed Goodness" />
-        <h1>
-          Let's find out how much you know <span>about your food</span>
-        </h1>
-        <p>5 quick questions. 1 minute.</p>
+
+        <div className="hero-copy">
+          <span className="hero-pill">🎁 Play &amp; win free eggs</span>
+          <h1>
+            Let's find out how much you know <span>about your food</span>
+          </h1>
+          <p>5 quick questions. 1 minute.</p>
+          <div className="hero-prizes">
+            <span>🥚 6 free eggs</span>
+            <span>🚜 Score 3+ for a farm tour</span>
+          </div>
+        </div>
       </section>
 
       <section className="cats">
@@ -420,15 +433,6 @@ function Quiz({ quiz, onDone, onExit }) {
   )
 }
 
-function EggIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M12 2.5c-3.6 0-6.5 6-6.5 10.6a6.5 6.5 0 0 0 13 0C18.5 8.5 15.6 2.5 12 2.5Z" fill="currentColor" />
-      <ellipse cx="9.6" cy="9" rx="1.3" ry="2.2" fill="#fff" opacity="0.45" />
-    </svg>
-  )
-}
-
 function BarnIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round">
@@ -447,48 +451,101 @@ function formatExpiry(iso) {
   })
 }
 
+// "23h 41m left", ticking along while the page is open
+function useTimeLeft(iso) {
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    if (!iso) return
+    const t = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(t)
+  }, [iso])
+  if (!iso) return ''
+  const mins = Math.max(0, Math.floor((new Date(iso) - now) / 60000))
+  if (!mins) return 'Expired'
+  return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m left`
+}
+
 // Shopify cart link: puts one 6 pcs pack in the cart, applies the code and opens checkout
 const EGG_VARIANT_ID = '45718472196165'
 const eggCheckoutUrl = (code) =>
   `https://www.legitfarms.com/cart/${EGG_VARIANT_ID}:1?discount=${encodeURIComponent(code)}`
+// the theme's tour form reads ?tour_code= and fills "Anything else we should know?" with this message
+const tourUrl = (code) =>
+  `https://www.legitfarms.com/pages/farm-tour?tour_code=${encodeURIComponent(code)}#farm-tour-enquire`
+const tourMessage = (code) => `I won the prize: free farm tour. Code: ${code}`
 
-function PrizeCode({ prize, code, hint, useUrl }) {
+function useCopy(text) {
   const [copied, setCopied] = useState(false)
-  if (prize.status === 'loading') return <div className="prize-code is-loading" aria-hidden="true" />
-  if (prize.status !== 'ready' || !code) return null
-
   function copy() {
-    navigator.clipboard?.writeText(code).then(() => {
+    navigator.clipboard?.writeText(text).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
     })
   }
+  return [copied, copy]
+}
 
+function PrizeCard({ tone, icon, kicker, title, worth, code, copyText = code, action, steps, loading }) {
+  const [copied, copy] = useCopy(copyText)
   return (
-    <div className="prize-code-wrap">
-      <div className="prize-code">
-        <span className="prize-code-text">{code}</span>
-        <button type="button" className="prize-copy-btn" onClick={copy}>
-          {copied ? 'Copied!' : 'Copy'}
-        </button>
+    <article className={`gift gift-${tone}`}>
+      <div className="gift-top">
+        <span className="gift-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <div className="gift-title">
+          <span className="gift-kicker">{kicker}</span>
+          <h2>{title}</h2>
+        </div>
+        <span className="gift-worth">{worth}</span>
       </div>
-      {useUrl && (
-        <a className="prize-use-btn" href={useUrl(code)} target="_blank" rel="noopener">
-          Use now <span aria-hidden="true">&rarr;</span>
-        </a>
+
+      <div className="gift-cut" aria-hidden="true" />
+
+      {loading ? (
+        <div className="gift-code is-loading" aria-label="Getting your code" />
+      ) : (
+        <>
+          <div className="gift-code">
+            <span className="gift-code-label">Your code</span>
+            <span className="gift-code-text">{code}</span>
+            <button type="button" className="gift-copy" onClick={copy}>
+              {copied ? 'Copied ✓' : 'Copy'}
+            </button>
+          </div>
+          <a
+            className="gift-cta"
+            href={action.url}
+            target="_blank"
+            rel="noopener"
+            onClick={action.copyFirst ? copy : undefined}
+          >
+            {action.label} <span aria-hidden="true">&rarr;</span>
+          </a>
+          <ol className="gift-steps">
+            {steps.map((s, i) => (
+              <li key={i}>
+                <span className="gift-step-num">{i + 1}</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ol>
+        </>
       )}
-      <small className="prize-hint">{hint}</small>
-    </div>
+    </article>
   )
 }
 
-function Result({ quiz, results, prize }) {
+function Result({ quiz, results, prize, name, onRetry }) {
   const scoredResults = results.filter((r) => r !== null)
   const scored = scoredResults.length
   const score = scoredResults.filter(Boolean).length
   const ratio = scored ? score / scored : 0
   // once the codes are in, trust them (a repeat player keeps the prize they first won)
   const hasTour = prize.status === 'ready' ? Boolean(prize.tourCode) : score >= TOUR_SCORE
+  const loading = prize.status === 'loading'
+  const timeLeft = useTimeLeft(prize.status === 'ready' ? prize.expires : null)
+  const firstName = name ? name.trim().split(/\s+/)[0] : ''
 
   let title = 'Good catch!'
   let text = "Actually, 90% of people don't know this. Now you know what to look for."
@@ -502,98 +559,121 @@ function Result({ quiz, results, prize }) {
 
   return (
     <main className="screen result">
-      {ratio >= 0.5 && (
-        <div className="confetti" aria-hidden="true">
-          {CONFETTI.map((c, i) => (
-            <span
-              key={i}
-              style={{ left: c.left, background: c.color, animationDelay: c.delay, animationDuration: c.duration }}
-            />
-          ))}
-        </div>
-      )}
-
-      <img className="result-logo" src={logoCream} alt="Legit Farms - Guaranteed Goodness" />
-
-      <div className="score">
-        <svg viewBox="0 0 120 120" aria-hidden="true">
-          <circle className="score-track" cx="60" cy="60" r="54" />
-          <circle
-            className="score-fill"
-            cx="60"
-            cy="60"
-            r="54"
-            strokeDasharray={RING}
-            style={{ '--ring': RING, '--offset': RING * (1 - ratio) }}
+      <div className="confetti" aria-hidden="true">
+        {CONFETTI.map((c, i) => (
+          <span
+            key={i}
+            style={{ left: c.left, background: c.color, animationDelay: c.delay, animationDuration: c.duration }}
           />
-        </svg>
-        <div className="score-text">
-          <span className="score-num">{score}</span>
-          <span className="score-of">out of {scored}</span>
-        </div>
-      </div>
-
-      <div className="dots" aria-hidden="true">
-        {results.map((r, i) => (
-          <span key={i} className={r === null ? 'dot' : r ? 'dot yes' : 'dot no'}>
-            {r === null ? '•' : r ? '✓' : '✕'}
-          </span>
         ))}
       </div>
 
-      <h1>{title}</h1>
-      <p className="lead">{text}</p>
-      <section className="prize" aria-label="Your prize">
-        <div className="prize-head">
-          <span className="prize-ribbon">You've won</span>
-        </div>
-        <ul className="prize-list">
-          {hasTour && (
-            <li className="prize-item">
-              <div className="prize-row">
-                <span className="prize-icon" aria-hidden="true">
-                  <BarnIcon />
-                </span>
-                <span className="prize-copy">
-                  <strong>Free farm tour</strong>
-                  <small>Meet our hens on open pasture</small>
-                </span>
-                <span className="prize-badge">Free</span>
-              </div>
-              <PrizeCode prize={prize} code={prize.tourCode} hint="Show this code to our team to book your tour" />
-            </li>
-          )}
-          <li className="prize-item">
-            <div className="prize-row">
-              <span className="prize-icon" aria-hidden="true">
-                <EggIcon />
-              </span>
-              <span className="prize-copy">
-                <strong>Pasture-raised eggs</strong>
-                <small>Fresh from Legit Farms</small>
-              </span>
-              <span className="prize-badge">×6</span>
-            </div>
-            <PrizeCode
-              prize={prize}
-              code={prize.eggCode}
-              hint="Code is applied for you, or enter it at checkout on legitfarms.com"
-              useUrl={eggCheckoutUrl}
+      <img className="result-logo" src={logoCream} alt="Legit Farms - Guaranteed Goodness" />
+
+      <div className="result-head">
+        <div className="score score-sm">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle className="score-track" cx="60" cy="60" r="54" />
+            <circle
+              className="score-fill"
+              cx="60"
+              cy="60"
+              r="54"
+              strokeDasharray={RING}
+              style={{ '--ring': RING, '--offset': RING * (1 - ratio) }}
             />
-          </li>
-        </ul>
-        <p className="prize-foot">
-          {prize.status === 'ready' ? (
-            <>
-              {prize.repeat && 'You already have a prize on this number. '}
-              Valid till <b>{formatExpiry(prize.expires)}</b> · one-time use
-            </>
-          ) : prize.status === 'error' ? (
-            'Show this screen to our team at the stall to claim it.'
-          ) : (
-            'Getting your codes…'
+          </svg>
+          <div className="score-text">
+            <span className="score-num">{score}</span>
+            <span className="score-of">of {scored}</span>
+          </div>
+        </div>
+        <div className="result-head-text">
+          <h1>{title}</h1>
+          <p>{text}</p>
+          <div className="dots" aria-hidden="true">
+            {results.map((r, i) => (
+              <span key={i} className={r === null ? 'dot' : r ? 'dot yes' : 'dot no'}>
+                {r === null ? '•' : r ? '✓' : '✕'}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <section className="prizes" aria-label="Your prizes">
+        <div className="prizes-hero">
+          <span className="prizes-burst" aria-hidden="true">
+            🎉
+          </span>
+          <h2>{firstName ? `Congratulations, ${firstName}!` : 'Congratulations!'}</h2>
+          <p>
+            {prize.repeat
+              ? 'Welcome back! These are the prizes you won earlier.'
+              : hasTour
+                ? 'You won 2 prizes from Legit Farms'
+                : 'You won a prize from Legit Farms'}
+          </p>
+          {timeLeft && (
+            <span className={`prizes-timer${timeLeft === 'Expired' ? ' is-expired' : ''}`}>
+              <span className="prizes-timer-dot" aria-hidden="true" /> {timeLeft}
+            </span>
           )}
-        </p>
+        </div>
+
+        {prize.status === 'error' ? (
+          <div className="prizes-error">
+            <strong>We couldn't load your codes</strong>
+            <span>Check your internet and try again, or show this screen to our team at the stall.</span>
+            <button type="button" className="gift-copy" onClick={onRetry}>
+              Try again
+            </button>
+          </div>
+        ) : (
+          <>
+            <PrizeCard
+              tone="egg"
+              icon={<img src={eggBox} alt="" />}
+              kicker={hasTour ? 'Prize 1' : 'Your prize'}
+              title="6 pasture-raised eggs"
+              worth="₹150"
+              code={prize.eggCode}
+              loading={loading}
+              action={{ label: 'Claim my eggs', url: prize.eggCode && eggCheckoutUrl(prize.eggCode) }}
+              steps={[
+                'Tap “Claim my eggs”. The eggs go in your cart with the code applied.',
+                'Enter your delivery address at checkout.',
+                'Your 6 eggs show as ₹0. Place the order and you’re done!',
+              ]}
+            />
+            {hasTour && (
+              <PrizeCard
+                tone="tour"
+                icon={<BarnIcon />}
+                kicker="Prize 2"
+                title="Free farm tour"
+                worth="FREE"
+                code={prize.tourCode}
+                copyText={prize.tourCode && tourMessage(prize.tourCode)}
+                loading={loading}
+                action={{ label: 'Book my tour', url: prize.tourCode && tourUrl(prize.tourCode), copyFirst: true }}
+                steps={[
+                  'Tap “Book my tour”. Your code is filled in on the form for you.',
+                  'Add your group size and the date you’d like to visit.',
+                  'Send it. Our team will call you to confirm your visit.',
+                ]}
+              />
+            )}
+          </>
+        )}
+
+        {prize.status === 'ready' && (
+          <p className="prizes-foot">
+            Valid till <b>{formatExpiry(prize.expires)}</b> · each code works once
+            <br />
+            Tip: take a screenshot to keep your codes handy 📸
+          </p>
+        )}
       </section>
     </main>
   )
@@ -674,7 +754,7 @@ export default function App() {
           const scored = finalResults.filter((r) => r !== null)
           const score = `${scored.filter(Boolean).length}/${scored.length}`
           updateLead(leadId, { score })
-          savePlayed({ quizId, leadId, score, results: finalResults })
+          savePlayed({ quizId, leadId, score, results: finalResults, name: player?.name })
           setResults(finalResults)
           fetchPrize(leadId, score)
           go('result')
@@ -684,7 +764,16 @@ export default function App() {
   }
 
   if (screen === 'result') {
-    return <Result quiz={quiz} results={results} prize={prize} />
+    const saved = readPlayed()
+    return (
+      <Result
+        quiz={quiz}
+        results={results}
+        prize={prize}
+        name={player?.name || saved?.name}
+        onRetry={() => fetchPrize(saved.leadId, saved.score)}
+      />
+    )
   }
 
   return (
