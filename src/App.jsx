@@ -195,7 +195,9 @@ function Home({ player, onChangePlayer, onPick }) {
           </h1>
           <p>5 quick questions. 1 minute.</p>
           <div className="hero-prizes">
-            <span>🥚 6 free eggs</span>
+            <span>
+              <i className="chip-egg" aria-hidden="true" /> 6 free eggs
+            </span>
             <span>🚜 Score 3+ for a farm tour</span>
           </div>
         </div>
@@ -403,7 +405,7 @@ function Quiz({ quiz, onDone, onExit }) {
                 </span>
                 <div>
                   <strong>{trick ? 'Legit fact' : right ? 'Correct!' : 'Not quite'}</strong>
-                  {!trick && (
+                  {!trick && !right && (
                     <span className="verdict-answer">
                       Answer: <b>{q.options.find((o) => o.id === q.correct).label}</b>
                     </span>

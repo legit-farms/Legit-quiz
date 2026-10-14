@@ -208,6 +208,16 @@ p {
   animation: rise 0.6s 0.3s ease both;
 }
 
+.chip-egg {
+  display: inline-block;
+  width: 12px;
+  height: 15px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: radial-gradient(circle at 35% 30%, #fffdf7, #f3e2c2 60%, #d9bd8c);
+}
+
 .hero-prizes span {
   padding: 8px 12px;
   background: rgba(255, 237, 207, 0.12);
@@ -1734,7 +1744,12 @@ p {
 
 /* the home list and quiz already sit inside their own padding */
 .quiz .site-ad {
-  margin: 16px 0 calc(18px + var(--safe-bottom));
+  margin: auto 0 calc(18px + var(--safe-bottom));
+}
+
+/* the ad takes the free space in the quiz, so the button follows the answer */
+.quiz .next-wrap {
+  margin-top: 0;
 }
 
 /* the result screen is green, so flip the ad to cream */
