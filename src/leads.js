@@ -49,12 +49,37 @@ export function updateLead(id, patch) {
   if (lead) sendToSheet(lead)
 }
 
+// Saves the final score and asks the sheet for this player's prize codes.
+// Resolves to { eggCode, tourCode, expires } or throws if the codes could not be made.
+export async function claimPrize(id, score) {
+  const lead = readLeads().find((l) => l.id === id)
+  if (!SHEET_URL || !lead) throw new Error('No sheet set up')
+  const res = await fetch(SHEET_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ ...lead, score, action: 'prize' }),
+  })
+  const prize = await res.json()
+  if (!prize.eggCode) throw new Error(prize.error || 'No code')
+  const patch = { score, eggCode: prize.eggCode, tourCode: prize.tourCode }
+  writeLeads(readLeads().map((l) => (l.id === id ? { ...l, ...patch } : l)))
+  return prize
+}
+
 export function clearLeads() {
   writeLeads([])
 }
 
 export function leadsCsv() {
   const cell = (value) => `"${String(value).replaceAll('"', '""')}"`
-  const rows = readLeads().map((l) => [l.name, l.phone, l.quiz, l.score, new Date(l.time).toLocaleString()])
-  return [['Name', 'Phone', 'Quiz', 'Score', 'Time'], ...rows].map((row) => row.map(cell).join(',')).join('\r\n')
+  const rows = readLeads().map((l) => [
+    l.name,
+    l.phone,
+    l.quiz,
+    l.score,
+    l.eggCode || '',
+    l.tourCode || '',
+    new Date(l.time).toLocaleString(),
+  ])
+  return [['Name', 'Phone', 'Quiz', 'Score', 'Egg code', 'Tour code', 'Time'], ...rows].map((row) => row.map(cell).join(',')).join('\r\n')
 }

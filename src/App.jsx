@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { categories, quizzes } from './data/quizzes.js'
-import { addLead, clearLeads, leadsCsv, readLeads, updateLead } from './leads.js'
+import { addLead, claimPrize, clearLeads, leadsCsv, readLeads, updateLead } from './leads.js'
 import logoCream from './assets/logo-cream.png'
 
 const LETTERS = ['a', 'b', 'c', 'd', 'e']
 const RING = 2 * Math.PI * 54
+// score needed to win the farm tour on top of the 6 eggs
+const TOUR_SCORE = 3
 const CONFETTI = Array.from({ length: 18 }, (_, i) => ({
   left: `${(i * 37) % 100}%`,
   delay: `${(i % 6) * 0.12}s`,
@@ -232,6 +234,8 @@ function Leads() {
               <th>Phone</th>
               <th>Quiz</th>
               <th>Score</th>
+              <th>Egg code</th>
+              <th>Tour code</th>
               <th>Time</th>
             </tr>
           </thead>
@@ -242,6 +246,8 @@ function Leads() {
                 <td>{l.phone}</td>
                 <td>{l.quiz}</td>
                 <td>{l.score}</td>
+                <td>{l.eggCode}</td>
+                <td>{l.tourCode}</td>
                 <td>{new Date(l.time).toLocaleString()}</td>
               </tr>
             ))}
@@ -405,18 +411,72 @@ function Quiz({ quiz, onDone, onExit }) {
   )
 }
 
-function Result({ quiz, results, onRestart }) {
+function EggIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M12 2.5c-3.6 0-6.5 6-6.5 10.6a6.5 6.5 0 0 0 13 0C18.5 8.5 15.6 2.5 12 2.5Z" fill="currentColor" />
+      <ellipse cx="9.6" cy="9" rx="1.3" ry="2.2" fill="#fff" opacity="0.45" />
+    </svg>
+  )
+}
+
+function BarnIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M3 10.5 12 4l9 6.5V20H3z" />
+      <path d="M9.5 20v-6h5v6M9.5 14l5 6M14.5 14l-5 6" />
+    </svg>
+  )
+}
+
+function formatExpiry(iso) {
+  return new Date(iso).toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function PrizeCode({ prize, code, hint }) {
+  const [copied, setCopied] = useState(false)
+  if (prize.status === 'loading') return <div className="prize-code is-loading" aria-hidden="true" />
+  if (prize.status !== 'ready' || !code) return null
+
+  function copy() {
+    navigator.clipboard?.writeText(code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    })
+  }
+
+  return (
+    <div className="prize-code-wrap">
+      <div className="prize-code">
+        <span className="prize-code-text">{code}</span>
+        <button type="button" className="prize-copy-btn" onClick={copy}>
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      <small className="prize-hint">{hint}</small>
+    </div>
+  )
+}
+
+function Result({ quiz, results, prize, onRestart }) {
   const scoredResults = results.filter((r) => r !== null)
   const scored = scoredResults.length
   const score = scoredResults.filter(Boolean).length
   const ratio = scored ? score / scored : 0
+  // once the codes are in, trust them (a repeat player keeps the prize they first won)
+  const hasTour = prize.status === 'ready' ? Boolean(prize.tourCode) : score >= TOUR_SCORE
 
-  let title = 'Now you know!'
-  let text = 'Most people are surprised by these answers. Now you know what to look for.'
+  let title = 'Good catch!'
+  let text = "Actually, 90% of people don't know this. Now you know what to look for."
   if (ratio === 1) {
     title = `Legit ${quiz.title.toLowerCase()} expert!`
     text = 'You really know your food. Our team would love to meet you.'
-  } else if (ratio >= 0.5) {
+  } else if (score >= TOUR_SCORE) {
     title = 'Almost there!'
     text = 'You know more than most. A few surprises in there, right?'
   }
@@ -464,7 +524,53 @@ function Result({ quiz, results, onRestart }) {
 
       <h1>{title}</h1>
       <p className="lead">{text}</p>
-      <p className="result-cta">Ask our team at the stall how Legit Farms {quiz.title.toLowerCase()} are different.</p>
+      <section className="prize" aria-label="Your prize">
+        <div className="prize-head">
+          <span className="prize-ribbon">You've won</span>
+        </div>
+        <ul className="prize-list">
+          {hasTour && (
+            <li className="prize-item">
+              <div className="prize-row">
+                <span className="prize-icon" aria-hidden="true">
+                  <BarnIcon />
+                </span>
+                <span className="prize-copy">
+                  <strong>Free farm tour</strong>
+                  <small>Meet our hens on open pasture</small>
+                </span>
+                <span className="prize-badge">Free</span>
+              </div>
+              <PrizeCode prize={prize} code={prize.tourCode} hint="Show this code to our team to book your tour" />
+            </li>
+          )}
+          <li className="prize-item">
+            <div className="prize-row">
+              <span className="prize-icon" aria-hidden="true">
+                <EggIcon />
+              </span>
+              <span className="prize-copy">
+                <strong>Pasture-raised eggs</strong>
+                <small>Fresh from Legit Farms</small>
+              </span>
+              <span className="prize-badge">×6</span>
+            </div>
+            <PrizeCode prize={prize} code={prize.eggCode} hint="Use this code at checkout on legitfarms.com" />
+          </li>
+        </ul>
+        <p className="prize-foot">
+          {prize.status === 'ready' ? (
+            <>
+              {prize.repeat && 'You already have a prize on this number. '}
+              Valid till <b>{formatExpiry(prize.expires)}</b> · one-time use
+            </>
+          ) : prize.status === 'error' ? (
+            'Show this screen to our team at the stall to claim it.'
+          ) : (
+            'Getting your codes…'
+          )}
+        </p>
+      </section>
       <button className="btn btn-yolk" onClick={onRestart}>
         Play again
       </button>
@@ -478,6 +584,8 @@ export default function App() {
   const [results, setResults] = useState([])
   const [player, setPlayer] = useState(null)
   const [leadId, setLeadId] = useState(null)
+  const [prize, setPrize] = useState({ status: 'loading' })
+  const prizeFor = useRef(null)
   const [hash, setHash] = useState(window.location.hash)
 
   useEffect(() => {
@@ -523,8 +631,15 @@ export default function App() {
         onExit={() => go('home')}
         onDone={(finalResults) => {
           const scored = finalResults.filter((r) => r !== null)
-          updateLead(leadId, { score: `${scored.filter(Boolean).length}/${scored.length}` })
+          const score = `${scored.filter(Boolean).length}/${scored.length}`
+          updateLead(leadId, { score })
           setResults(finalResults)
+          // ignore a late answer if they have already moved on to another quiz
+          setPrize({ status: 'loading' })
+          prizeFor.current = leadId
+          claimPrize(leadId, score)
+            .then((codes) => prizeFor.current === leadId && setPrize({ status: 'ready', ...codes }))
+            .catch(() => prizeFor.current === leadId && setPrize({ status: 'error' }))
           go('result')
         }}
       />
@@ -532,7 +647,7 @@ export default function App() {
   }
 
   if (screen === 'result') {
-    return <Result quiz={quiz} results={results} onRestart={() => go('home')} />
+    return <Result quiz={quiz} results={results} prize={prize} onRestart={() => go('home')} />
   }
 
   return (
