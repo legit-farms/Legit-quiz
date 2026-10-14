@@ -1667,3 +1667,84 @@ p {
   font-weight: 600;
   letter-spacing: 0;
 }
+
+/* ---------- legitfarms.com ad (bottom of every quiz screen) ---------- */
+
+.site-ad {
+  display: grid;
+  grid-template-columns: auto 1fr 36px;
+  align-items: center;
+  gap: 12px;
+  margin: auto 16px calc(18px + var(--safe-bottom));
+  padding: 12px 12px 12px 18px;
+  background: var(--green);
+  color: var(--tint);
+  text-decoration: none;
+  text-align: left;
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  transition: transform 0.12s ease;
+}
+
+.site-ad:active {
+  transform: scale(0.98);
+}
+
+.site-ad-logo {
+  width: 64px;
+  height: auto;
+  display: block;
+}
+
+.site-ad .on-cream,
+.result .site-ad .on-green {
+  display: none;
+}
+
+.result .site-ad .on-cream {
+  display: block;
+}
+
+.site-ad-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.site-ad-text b {
+  font-size: 0.9rem;
+}
+
+.site-ad-text span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yolk);
+}
+
+.site-ad-go {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: var(--yolk);
+  color: var(--green-deep);
+  font-weight: 700;
+  border-radius: 50%;
+}
+
+/* the home list and quiz already sit inside their own padding */
+.quiz .site-ad {
+  margin: 16px 0 calc(18px + var(--safe-bottom));
+}
+
+/* the result screen is green, so flip the ad to cream */
+.result .site-ad {
+  width: 100%;
+  margin: 8px 0 0;
+  background: var(--cream);
+  color: var(--green-deep);
+}
+
+.result .site-ad-text span {
+  color: var(--green);
+}

@@ -11,6 +11,7 @@ import {
   updateLead,
 } from './leads.js'
 import logoCream from './assets/logo-cream.png'
+import logoGreen from './assets/logo-green.png'
 import eggBox from './assets/cat-eggs.png'
 
 const LETTERS = ['a', 'b', 'c', 'd', 'e']
@@ -80,6 +81,23 @@ function Media({ media, answered }) {
         </figure>
       ))}
     </div>
+  )
+}
+
+// small ad for the main store, shown at the bottom of every quiz screen
+function SiteAd() {
+  return (
+    <a className="site-ad" href="https://www.legitfarms.com/" target="_blank" rel="noopener noreferrer">
+      <img className="site-ad-logo on-green" src={logoCream} alt="Legit Farms" />
+      <img className="site-ad-logo on-cream" src={logoGreen} alt="Legit Farms" />
+      <span className="site-ad-text">
+        <b>Buy honest food</b>
+        <span>legitfarms.com</span>
+      </span>
+      <span className="site-ad-go" aria-hidden="true">
+        &#8599;
+      </span>
+    </a>
   )
 }
 
@@ -155,6 +173,7 @@ function Details({ quiz, onSubmit, onBack }) {
       </button>
       <p className="details-note">Your details stay with Legit Farms.</p>
     </form>
+      <SiteAd />
     </main>
   )
 }
@@ -214,6 +233,7 @@ function Home({ player, onChangePlayer, onPick }) {
           )
         })}
       </section>
+      <SiteAd />
     </main>
   )
 }
@@ -429,6 +449,7 @@ function Quiz({ quiz, onDone, onExit }) {
           </button>
         </div>
       )}
+      <SiteAd />
     </main>
   )
 }
@@ -675,6 +696,7 @@ function Result({ quiz, results, prize, name, onRetry }) {
           </p>
         )}
       </section>
+      <SiteAd />
     </main>
   )
 }
