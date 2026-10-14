@@ -127,6 +127,12 @@ function shopifyToken(store) {
   return body.access_token
 }
 
+// Run this once from the editor: it asks Google for permission to reach Shopify and checks the login.
+function testShopify() {
+  const result = shopify('{ shop { name } }', {})
+  Logger.log(JSON.stringify(result))
+}
+
 function prop(name) {
   const value = PropertiesService.getScriptProperties().getProperty(name)
   if (!value) throw new Error(`Script property ${name} is not set`)
