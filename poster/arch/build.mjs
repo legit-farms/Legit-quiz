@@ -11,8 +11,8 @@ const root = join(here, '..', '..')
 const b64 = (p) => readFileSync(join(root, p)).toString('base64')
 
 const logo = `data:image/png;base64,${b64('src/assets/logo-cream.png')}`
-// same QR as the A4 poster (points to the quiz site)
-const qr = readFileSync(join(root, 'poster/poster.html'), 'utf8').match(/<svg[^>]*viewBox="0 0 33 33"[\s\S]*?<\/svg>/)[0]
+// QR to the quiz site (the PNG carries its own white quiet zone)
+const qr = `<img class="qr" src="data:image/png;base64,${b64('poster/arch/qr.png')}" alt="QR code to the quiz">`
 
 // the website's floating farm motifs (vector symbols from the live Shopify theme)
 const sprite = readFileSync(join(root, '../lf-branded-live/snippets/lf-motion.liquid'), 'utf8').match(
@@ -81,10 +81,7 @@ h1 span { display: block; color: var(--yolk); text-wrap: balance }
 .sub { position: relative; margin-top: 1.4in; font-size: 1.9in; font-weight: 500; opacity: .9 }
 .qr-wrap { position: relative; margin-top: 2.6in; padding: 1.8in 1.8in 2.8in; background: #fff; border-radius: 2.6in;
   box-shadow: 0 0 0 .6in var(--yolk), 0 2.4in 4.4in -1.6in rgba(0,0,0,.7) }
-.qr-wrap svg { display: block; width: 23in; height: 23in }
-.qr-badge { position: absolute; left: 50%; top: calc(50% - .5in); width: 4.6in; height: 4.6in; translate: -50% -50%;
-  display: grid; place-items: center; background: var(--green); border: .45in solid #fff; border-radius: 1.3in }
-.qr-badge .egg { position: static; width: 1.9in; height: 2.4in; box-shadow: none }
+.qr-wrap .qr { display: block; width: 26.6in; height: 26.6in; margin: -1.8in; border-radius: 2.6in; image-rendering: pixelated }
 .scan { position: absolute; left: 50%; bottom: -1.6in; translate: -50% 0; padding: .6in 2.2in; white-space: nowrap;
   background: var(--deep); color: var(--yolk); font-weight: 800; font-size: 1.9in; letter-spacing: .14em; border-radius: 9in;
   border: .25in solid var(--yolk) }
@@ -114,7 +111,7 @@ ${sprite}
   ${motif('bee3d', 'bee')}${motif('cow', 'cow')}${motif('quail', 'quail')}
   <h1>How much do you know <span>about your food?</span></h1>
   <p class="sub">5 quick questions · 1 minute</p>
-  <div class="qr-wrap">${qr}<div class="qr-badge"><span class="egg"></span></div><div class="scan">SCAN TO PLAY</div></div>
+  <div class="qr-wrap">${qr}<div class="scan">SCAN TO PLAY</div></div>
   <div class="prizes">
     <div class="prize p1"><span class="ic"><span class="egg coupon"></span></span><div><b>₹303 off coupon</b><small>On all products · everyone who plays wins</small></div></div>
     <div class="prize p2"><span class="ic">🚜</span><div><b>Free farm tour</b><small>Score 3 or more</small></div></div>
