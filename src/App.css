@@ -1567,6 +1567,22 @@ p {
   background: transparent;
 }
 
+.otp input {
+  letter-spacing: 0.4em;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.otp .link {
+  justify-self: start;
+}
+
+.details .btn:disabled,
+.details .link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .field-error {
   padding: 10px 14px;
   background: var(--red-tint);

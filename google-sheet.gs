@@ -6,6 +6,11 @@
 //   SHOPIFY_CLIENT_ID      client ID of your Shopify app (Dev Dashboard, scopes: write_discounts, read_discounts)
 //   SHOPIFY_CLIENT_SECRET  client secret of that app
 // (or SHOPIFY_TOKEN instead of the client ID/secret if you have an old-style shpat_ admin token)
+//
+// OTP: players verify their phone with Twilio Verify before the quiz. Add these script properties too:
+//   TWILIO_ACCOUNT_SID     AC... (Twilio Console home page)
+//   TWILIO_AUTH_TOKEN      auth token from the same page
+//   TWILIO_VERIFY_SID      VA... (Console > Verify > Services > create a service)
 // After changing this file, use Deploy > Manage deployments > Edit > New version so the live URL picks it up.
 //
 // Stats: run setupStats once from the editor. It builds the "Stats" tab (live formulas + charts)
@@ -19,10 +24,18 @@ const COUPON_AMOUNT = '300' // ₹ off the whole order, works on any products
 const SHOPIFY_API = '2026-07'
 
 function doPost(e) {
+  const lead = JSON.parse(e.postData.contents)
+  // OTP calls don't touch the sheet, so they skip the lock
+  try {
+    if (lead.action === 'otp-send') return json(sendOtp(lead.phone))
+    if (lead.action === 'otp-check') return json(checkOtp(lead.phone, lead.code))
+  } catch (err) {
+    return json({ error: String(err.message || err) })
+  }
+
   const lock = LockService.getScriptLock()
   lock.waitLock(10000)
   try {
-    const lead = JSON.parse(e.postData.contents)
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS])
 
@@ -57,6 +70,8 @@ function givePrize(sheet, at, lead) {
   if (earlier) {
     return { eggCode: earlier[6], tourCode: earlier[7] || '', expires: new Date(earlier[8]).toISOString(), repeat: true }
   }
+
+  if (!isVerified(phone)) return { error: 'Phone number not verified' }
 
   const [right] = String(lead.score).split('/').map(Number)
   const expires = new Date(Date.now() + CODE_HOURS * 3600 * 1000)
@@ -93,6 +108,45 @@ function createEggDiscount(code, expires, lead) {
   if (result.errors || (errors && errors.length)) {
     throw new Error('Shopify: ' + JSON.stringify(result.errors || errors))
   }
+}
+
+// ---------- OTP (Twilio Verify) ----------
+
+function sendOtp(phone) {
+  const res = twilio('Verifications', { To: toE164(phone), Channel: 'sms' })
+  if (res.status === 'pending') return { ok: true }
+  return { error: res.message || 'Could not send the code' }
+}
+
+function checkOtp(phone, code) {
+  const res = twilio('VerificationCheck', { To: toE164(phone), Code: String(code) })
+  if (res.status !== 'approved') return { error: res.message || 'Wrong code' }
+  // remembered for good, so a player can reload the result page and still get their coupon
+  PropertiesService.getScriptProperties().setProperty('verified:' + digits(phone), String(Date.now()))
+  return { ok: true }
+}
+
+function isVerified(phone) {
+  return Boolean(PropertiesService.getScriptProperties().getProperty('verified:' + digits(phone)))
+}
+
+function twilio(endpoint, payload) {
+  const auth = Utilities.base64Encode(prop('TWILIO_ACCOUNT_SID') + ':' + prop('TWILIO_AUTH_TOKEN'))
+  const res = UrlFetchApp.fetch(`https://verify.twilio.com/v2/Services/${prop('TWILIO_VERIFY_SID')}/${endpoint}`, {
+    method: 'post',
+    headers: { Authorization: 'Basic ' + auth },
+    payload,
+    muteHttpExceptions: true,
+  })
+  return JSON.parse(res.getContentText())
+}
+
+const digits = (phone) => String(phone).replace(/\D/g, '').slice(-10)
+const toE164 = (phone) => '+91' + digits(phone)
+
+// Run this once from the editor with your own number to check the Twilio setup.
+function testOtp() {
+  Logger.log(JSON.stringify(sendOtp('9999999999')))
 }
 
 function shopify(query, variables) {

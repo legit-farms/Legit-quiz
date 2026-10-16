@@ -66,6 +66,21 @@ export async function claimPrize(id, score) {
   return prize
 }
 
+// OTP via the sheet script (it holds the Twilio keys). Both throw with a message to show the player.
+async function otp(action, body) {
+  const res = await fetch(SHEET_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, ...body }),
+  })
+  const out = await res.json()
+  if (!out.ok) throw new Error(out.error || 'Something went wrong')
+}
+
+export const otpEnabled = Boolean(SHEET_URL)
+export const sendOtp = (phone) => otp('otp-send', { phone })
+export const checkOtp = (phone, code) => otp('otp-check', { phone, code })
+
 // One quiz per device: once someone finishes, their result (and prize) is kept here
 // and shown again instead of letting them play another round.
 const PLAYED_KEY = 'legit-quiz-played'

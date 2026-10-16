@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { categories, quizzes } from './data/quizzes.js'
 import {
   addLead,
+  checkOtp,
   claimPrize,
   clearLeads,
   leadsCsv,
+  otpEnabled,
   readLeads,
   readPlayed,
   savePlayed,
+  sendOtp,
   updateLead,
 } from './leads.js'
 import logoCream from './assets/logo-cream.png'
@@ -105,8 +108,33 @@ function Details({ quiz, onSubmit, onBack }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
+  // null until the code is sent, then the 6-digit code they type
+  const [code, setCode] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [wait, setWait] = useState(0)
 
-  function submit(e) {
+  // countdown before "Resend code" unlocks
+  useEffect(() => {
+    if (!wait) return
+    const t = setTimeout(() => setWait(wait - 1), 1000)
+    return () => clearTimeout(t)
+  }, [wait])
+
+  async function send() {
+    setBusy(true)
+    setError('')
+    try {
+      await sendOtp(phone)
+      setCode('')
+      setWait(30)
+    } catch (err) {
+      setError(`Couldn't send the code. ${err.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function submit(e) {
     e.preventDefault()
     const cleanName = name.trim()
     if (cleanName.length < 2) {
@@ -117,7 +145,27 @@ function Details({ quiz, onSubmit, onBack }) {
       setError('Please enter a valid 10-digit mobile number.')
       return
     }
-    onSubmit(cleanName, phone)
+    if (!otpEnabled) {
+      onSubmit(cleanName, phone)
+      return
+    }
+    if (code === null) {
+      send()
+      return
+    }
+    if (!/^\d{6}$/.test(code)) {
+      setError('Please enter the 6-digit code we sent you.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await checkOtp(phone, code)
+      onSubmit(cleanName, phone)
+    } catch {
+      setError('That code is wrong or has expired. Please try again.')
+      setBusy(false)
+    }
   }
 
   return (
@@ -158,9 +206,34 @@ function Details({ quiz, onSubmit, onBack }) {
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
             placeholder="10-digit mobile number"
             autoComplete="tel-national"
+            readOnly={code !== null}
           />
         </div>
       </label>
+
+      {code !== null && (
+        <div className="field otp">
+          <span>
+            OTP sent to +91 {phone}{' '}
+            <button type="button" className="link" onClick={() => setCode(null)}>
+              Change
+            </button>
+          </span>
+          <input
+            aria-label="OTP"
+            type="text"
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="6-digit code"
+            autoComplete="one-time-code"
+            autoFocus
+          />
+          <button type="button" className="link" onClick={send} disabled={busy || wait > 0}>
+            {wait > 0 ? `Resend code in ${wait}s` : 'Resend code'}
+          </button>
+        </div>
+      )}
 
       {error && (
         <p className="field-error" role="alert">
@@ -168,8 +241,9 @@ function Details({ quiz, onSubmit, onBack }) {
         </p>
       )}
 
-      <button className="btn" type="submit">
-        Start the quiz <span aria-hidden="true">&rarr;</span>
+      <button className="btn" type="submit" disabled={busy}>
+        {busy ? 'Please wait…' : code === null && otpEnabled ? 'Send OTP' : 'Start the quiz'}{' '}
+        <span aria-hidden="true">&rarr;</span>
       </button>
       <p className="details-note">Your details stay with Legit Farms.</p>
     </form>
