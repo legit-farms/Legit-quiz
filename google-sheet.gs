@@ -20,7 +20,7 @@ const HEADERS = ['ID', 'Time', 'Name', 'Phone', 'Product', 'Score', 'Coupon code
 
 const TOUR_SCORE = 3 // same as TOUR_SCORE in src/App.jsx
 const CODE_HOURS = 24
-const COUPON_AMOUNT = '300' // ₹ off the whole order, works on any products
+const COUPON_AMOUNT = '303' // ₹ off the whole order, works on any products
 const SHOPIFY_API = '2026-07'
 
 function doPost(e) {
@@ -75,7 +75,7 @@ function givePrize(sheet, at, lead) {
 
   const [right] = String(lead.score).split('/').map(Number)
   const expires = new Date(Date.now() + CODE_HOURS * 3600 * 1000)
-  const eggCode = 'LF300-' + randomCode()
+  const eggCode = 'LF303-' + randomCode()
   const tourCode = right >= TOUR_SCORE ? 'TOUR-' + randomCode() : ''
 
   createEggDiscount(eggCode, expires, lead)
@@ -91,7 +91,7 @@ function createEggDiscount(code, expires, lead) {
     }
   }`
   const input = {
-    title: `Quiz prize: ₹300 off for ${lead.name} (${lead.phone})`,
+    title: `Quiz prize: ₹303 off for ${lead.name} (${lead.phone})`,
     code,
     startsAt: new Date().toISOString(),
     endsAt: expires.toISOString(),

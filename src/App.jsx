@@ -19,7 +19,7 @@ import eggBox from './assets/cat-eggs.png'
 
 const LETTERS = ['a', 'b', 'c', 'd', 'e']
 const RING = 2 * Math.PI * 54
-// score needed to win the farm tour on top of the ₹300 coupon
+// score needed to win the farm tour on top of the ₹303 coupon
 const TOUR_SCORE = 3
 const CONFETTI = Array.from({ length: 18 }, (_, i) => ({
   left: `${(i * 37) % 100}%`,
@@ -267,14 +267,14 @@ function Home({ player, onChangePlayer, onPick }) {
         <img className="hero-logo" src={logoCream} alt="Legit Farms - Guaranteed Goodness" />
 
         <div className="hero-copy">
-          <span className="hero-pill">🎁 Play &amp; win ₹300 off</span>
+          <span className="hero-pill">🎁 Play &amp; win ₹303 off</span>
           <h1>
             Let's find out how much you know <span>about your food</span>
           </h1>
           <p>5 quick questions. 1 minute.</p>
           <div className="hero-prizes">
             <span>
-              <i className="chip-egg" aria-hidden="true" /> ₹300 off coupon
+              <i className="chip-egg" aria-hidden="true" /> ₹303 off coupon
             </span>
             <span>🚜 Score 3+ for a farm tour</span>
           </div>
@@ -735,15 +735,15 @@ function Result({ quiz, results, prize, name, onRetry }) {
               tone="egg"
               icon={<img src={eggBox} alt="" />}
               kicker={hasTour ? 'Prize 1' : 'Your prize'}
-              title="₹300 off coupon"
-              worth="₹300"
+              title="₹303 off coupon"
+              worth="₹303"
               code={prize.eggCode}
               loading={loading}
               action={{ label: 'Shop with my coupon', url: prize.eggCode && couponShopUrl(prize.eggCode) }}
               steps={[
                 'Tap “Shop with my coupon”. Your code is applied for you.',
                 'Add any Legit Farms products to your cart.',
-                'At checkout ₹300 comes off your order. Place it and you’re done!',
+                'At checkout ₹303 comes off your order. Place it and you’re done!',
               ]}
             />
             {hasTour && (
