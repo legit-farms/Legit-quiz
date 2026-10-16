@@ -1,5 +1,6 @@
 // Builds the print files for the 16 x 13 ft quiz arch (run: node poster/arch/build.mjs).
-// Output: top-beam.html (16 x 3 ft) and pillar.html (3 x 10 ft, print it twice), sized in real inches,
+// Output: top-beam.html (10 x 3 ft, fits between the pillars) and pillar.html (3 x 13 ft, print it twice),
+// sized in real inches,
 // plus preview.html showing the whole arch. Turn them into PDFs/PNGs with Chrome (see README.md).
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -41,52 +42,41 @@ body { font-family: Poppins, 'Segoe UI', sans-serif; color: var(--tint); backgro
 .motif { position: absolute; overflow: visible }
 `
 
-// two-leaf sprout in thin gold line, like the mockup
-const leaf = (flip) => `<svg class="leaf${flip ? ' flip' : ''}" viewBox="0 0 120 90" fill="none" stroke="#e9c46a" stroke-width="2.2" stroke-linecap="round">
-  <path d="M60 88 C60 60 58 40 50 22" />
-  <path d="M50 22 C30 30 6 22 2 2 C26 0 46 6 50 22 Z" />
-  <path d="M50 22 C34 16 18 9 2 2" stroke-width="1.4" opacity=".8" />
-  <path d="M58 50 C70 30 92 22 118 26 C110 48 86 58 58 50 Z" />
-  <path d="M58 50 C76 42 96 33 118 26" stroke-width="1.4" opacity=".8" />
-</svg>`
-
-const beam = `<!doctype html><html><head><meta charset="utf-8"><title>Arch top beam 16x3 ft</title><style>
+const beam = `<!doctype html><html><head><meta charset="utf-8"><title>Arch top beam 10x3 ft</title><style>
 ${base}
-@page { size: 192in 36in; margin: 0 }
-html, body { width: 192in; height: 36in; overflow: hidden }
-.beam { position: relative; width: 192in; height: 36in; overflow: hidden;
+@page { size: 120in 36in; margin: 0 }
+html, body { width: 120in; height: 36in; overflow: hidden }
+.beam { position: relative; width: 120in; height: 36in; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   background:
-    radial-gradient(40% 90% at 50% 50%, rgba(0,110,66,.55), transparent 70%),
+    radial-gradient(55% 90% at 50% 50%, rgba(0,110,66,.55), transparent 70%),
     linear-gradient(180deg, #00663f 0%, var(--green) 55%, #00391f 100%) }
 .beam::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1.6in; background: var(--yolk) }
 .logo { position: relative; height: 27in }
-.leaf { position: absolute; top: 4in; width: 30in; height: 22.5in }
-.leaf:not(.flip) { left: 14in; transform: scaleX(-1) }
-.leaf.flip { right: 14in }
 </style></head><body>
 <div class="beam">
-  ${leaf(false)}${leaf(true)}
   <img class="logo" src="${logo}" alt="Legit Farms - Guaranteed Goodness">
 </div>
 </body></html>`
 
-const pillar = `<!doctype html><html><head><meta charset="utf-8"><title>Arch pillar 3x10 ft</title><style>
+const pillar = `<!doctype html><html><head><meta charset="utf-8"><title>Arch pillar 3x13 ft</title><style>
 ${base}
-@page { size: 36in 120in; margin: 0 }
-html, body { width: 36in; height: 120in; overflow: hidden }
-.pillar { position: relative; width: 36in; height: 120in; overflow: hidden; padding: 9in 3in 0;
+@page { size: 36in 156in; margin: 0 }
+html, body { width: 36in; height: 156in; overflow: hidden }
+.pillar { position: relative; width: 36in; height: 156in; overflow: hidden; padding: 44in 3in 0;
   display: flex; flex-direction: column; align-items: center; text-align: center;
   background:
     radial-gradient(90% 30% at 0% 100%, rgba(242,163,37,.22), transparent 70%),
     linear-gradient(170deg, #00663f 0%, var(--green) 45%, #00321e 100%) }
-.yolk { position: absolute; top: -10in; right: -10in; width: 26in; height: 26in; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ffd27a, var(--yolk) 55%, #d98a12);
-  box-shadow: 0 0 0 2.6in rgba(255,237,207,.07), 0 0 0 5.6in rgba(255,237,207,.04) }
-.pill { position: relative; padding: .8in 2in; background: var(--yolk); color: var(--deep);
-  font-weight: 800; font-size: 2.2in; line-height: 1.2; border-radius: 9in;
-  box-shadow: 0 .8in 1.8in -.8in rgba(242,163,37,.9) }
-h1 { position: relative; margin-top: 2.2in; font-size: 4.5in; line-height: 1.04; font-weight: 800; letter-spacing: -.03em; text-wrap: balance }
+/* prize badge: sits in the top 3 ft, level with the top bar */
+.yolk { position: absolute; top: 4.5in; left: 50%; translate: -50% 0; width: 27in; height: 27in; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--deep);
+  background: radial-gradient(circle at 35% 30%, #ffd27a, var(--yolk) 55%, #d98a12);
+  box-shadow: 0 0 0 1.4in rgba(255,237,207,.09), 0 0 0 3in rgba(255,237,207,.04), 0 1.5in 3in -1in rgba(0,0,0,.5) }
+.yolk small { font-size: 2.5in; font-weight: 700; line-height: 1 }
+.yolk b { font-size: 9.4in; font-weight: 800; line-height: 1; letter-spacing: -.04em; margin-top: .4in }
+.yolk em { font-style: normal; font-size: 3.6in; font-weight: 800; line-height: 1; letter-spacing: .2em; margin-left: .2em }
+h1 { position: relative; font-size: 4.5in; line-height: 1.04; font-weight: 800; letter-spacing: -.03em; text-wrap: balance }
 h1 span { display: block; color: var(--yolk); text-wrap: balance }
 .sub { position: relative; margin-top: 1.4in; font-size: 1.9in; font-weight: 500; opacity: .9 }
 .qr-wrap { position: relative; margin-top: 2.6in; padding: 1.8in 1.8in 2.8in; background: #fff; border-radius: 2.6in;
@@ -110,7 +100,7 @@ h1 span { display: block; color: var(--yolk); text-wrap: balance }
 .steps span { display: flex; align-items: center; gap: .9in }
 .steps i { font-style: normal; flex: none; width: 2.6in; height: 2.6in; display: grid; place-items: center; border-radius: 50%;
   background: var(--yolk); color: var(--deep); font-weight: 800 }
-.pillar .bee { left: 2in; top: 2.5in; width: 6in; height: 4.9in; rotate: -12deg }
+.pillar .bee { left: 1.2in; top: 2in; width: 6in; height: 4.9in; rotate: -12deg; z-index: 1 }
 .pillar .cow { left: .6in; bottom: 14.5in; width: 6in; height: 5in }
 .pillar .quail { right: .6in; bottom: 14.5in; width: 5.6in; height: 4.6in; transform: scaleX(-1) }
 .foot { position: absolute; left: 0; right: 0; bottom: 0; height: 13in; padding: 0 2in 1.5in; text-align: center;
@@ -120,9 +110,8 @@ h1 span { display: block; color: var(--yolk); text-wrap: balance }
 </style></head><body>
 ${sprite}
 <div class="pillar">
-  <div class="yolk"></div>
+  <div class="yolk"><small>Play &amp; win</small><b>₹303</b><em>OFF</em></div>
   ${motif('bee3d', 'bee')}${motif('cow', 'cow')}${motif('quail', 'quail')}
-  <div class="pill">Play &amp; win ₹303 off</div>
   <h1>How much do you know <span>about your food?</span></h1>
   <p class="sub">5 quick questions · 1 minute</p>
   <div class="qr-wrap">${qr}<div class="qr-badge"><span class="egg"></span></div><div class="scan">SCAN TO PLAY</div></div>
@@ -135,17 +124,65 @@ ${sprite}
 </div>
 </body></html>`
 
-// whole arch at 1/24 scale (1 ft = 0.5in) to check the look; not for printing
+// Mockup of the whole arch in a room with dimensions, to show the printer/team. Not for printing.
+// Scene is 1600 x 1000 px; FT = px per foot. The real print files are scaled down into it.
+const FT = 56
+const X0 = (1600 - 16 * FT) / 2 // arch left edge
+const Y0 = 130 // arch top edge
+const S = FT / (12 * 96) // CSS inch -> scene px
+const px = (ft) => ft * FT
+const dim = (x1, y1, x2, y2, label, side) => {
+  const v = x1 === x2
+  const tx = v ? x1 + (side === 'left' ? -14 : 14) : (x1 + x2) / 2
+  const ty = v ? (y1 + y2) / 2 : y1 + (side === 'below' ? 26 : -12)
+  const anchor = v ? (side === 'left' ? 'end' : 'start') : 'middle'
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="${tx}" y="${ty}" text-anchor="${anchor}" dominant-baseline="${v ? 'middle' : 'auto'}">${label}</text>`
+}
+const bottom = Y0 + px(13)
 const preview = `<!doctype html><html><head><meta charset="utf-8"><title>Arch preview</title><style>
-html, body { margin: 0; background: #d9dcd6 }
-.arch { position: relative; width: 8in; height: 6.5in; margin: .4in }
-iframe { position: absolute; border: 0; transform-origin: 0 0; transform: scale(${1 / 24}) }
-.top { left: 0; top: 0; width: 192in; height: 36in }
-.l { left: 0; top: 1.5in; width: 36in; height: 120in }
-.r { left: 6.5in; top: 1.5in; width: 36in; height: 120in }
-</style></head><body><div class="arch">
-<iframe class="l" src="pillar.html"></iframe><iframe class="r" src="pillar.html"></iframe><iframe class="top" src="top-beam.html"></iframe>
-</div></body></html>`
+${fonts}
+html, body { margin: 0; width: 1600px; height: 1000px; overflow: hidden }
+body { position: relative; font-family: Poppins, 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #eeebe4 0%, #e2ded5 ${bottom - 60}px, #cfc8bb ${bottom - 60}px, #b9b1a3 100%) }
+.skirting { position: absolute; left: 0; right: 0; top: ${bottom - 66}px; height: 6px; background: #c9c2b5 }
+.glow { position: absolute; left: ${X0 - 200}px; top: ${Y0 - 80}px; width: ${px(16) + 400}px; height: ${px(13) + 120}px;
+  background: radial-gradient(50% 50% at 50% 45%, rgba(255,255,255,.75), transparent 70%) }
+.shadow { position: absolute; top: ${bottom - 14}px; height: 34px; border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(30,24,14,.45), transparent 75%) }
+.panel { position: absolute; overflow: hidden; box-shadow: 0 18px 30px -12px rgba(0,0,0,.35) }
+.panel iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; transform: scale(${S}) }
+.side { position: absolute; background: linear-gradient(90deg, #002b1a, #00422a) }
+.under { position: absolute; left: ${X0 + px(3)}px; top: ${Y0 + px(3)}px; width: ${px(10)}px; height: 14px;
+  background: linear-gradient(180deg, #002416, rgba(0,36,22,0)) }
+svg.dims { position: absolute; inset: 0; overflow: visible }
+.dims line { stroke: #4b5a50; stroke-width: 1.6 }
+.dims text { fill: #33423a; font-size: 19px; font-weight: 600 }
+.cap { position: absolute; left: 40px; top: 30px; color: #33423a }
+.cap b { display: block; font-size: 24px; font-weight: 800; color: #004d30 }
+.cap span { font-size: 15px; font-weight: 500; opacity: .8 }
+</style></head><body>
+<div class="glow"></div>
+<div class="skirting"></div>
+<div class="shadow" style="left:${X0 - 30}px;width:${px(3) + 60}px"></div>
+<div class="shadow" style="left:${X0 + px(13) - 30}px;width:${px(3) + 60}px"></div>
+<div class="side" style="left:${X0 + px(3)}px;top:${Y0 + px(3)}px;width:16px;height:${px(10)}px;clip-path:polygon(0 0,100% 2%,100% 100%,0 100%)"></div>
+<div class="side" style="left:${X0 + px(13) - 16}px;top:${Y0 + px(3)}px;width:16px;height:${px(10)}px;clip-path:polygon(0 2%,100% 0,100% 100%,0 100%);transform:scaleX(-1)"></div>
+<div class="under"></div>
+<div class="panel" style="left:${X0 + px(3)}px;top:${Y0}px;width:${px(10)}px;height:${px(3)}px"><iframe src="top-beam.html" style="width:120in;height:36in"></iframe></div>
+<div class="panel" style="left:${X0}px;top:${Y0}px;width:${px(3)}px;height:${px(13)}px"><iframe src="pillar.html" style="width:36in;height:156in"></iframe></div>
+<div class="panel" style="left:${X0 + px(13)}px;top:${Y0}px;width:${px(3)}px;height:${px(13)}px"><iframe src="pillar.html" style="width:36in;height:156in"></iframe></div>
+<svg class="dims" viewBox="0 0 1600 1000"><defs><marker id="a" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" fill="#4b5a50"/></marker></defs>
+  ${dim(X0, Y0 - 34, X0 + px(16), Y0 - 34, '16 ft')}
+  ${dim(X0 - 34, Y0, X0 - 34, bottom, '13 ft', 'left')}
+  ${dim(X0 + px(16) + 34, Y0, X0 + px(16) + 34, Y0 + px(3), '3 ft top bar', 'right')}
+  ${dim(X0 + px(16) + 34, Y0 + px(3), X0 + px(16) + 34, bottom, '10 ft clearance', 'right')}
+  ${dim(X0, bottom + 42, X0 + px(3), bottom + 42, '3 ft', 'below')}
+  ${dim(X0 + px(3), bottom + 42, X0 + px(13), bottom + 42, '10 ft walkway', 'below')}
+  ${dim(X0 + px(13), bottom + 42, X0 + px(16), bottom + 42, '3 ft', 'below')}
+</svg>
+<div class="cap"><b>Legit Farms quiz arch</b><span>16 × 13 ft · 2 pillars 3 × 13 ft · top bar 10 × 3 ft between them</span></div>
+</body></html>`
 
 writeFileSync(join(here, 'top-beam.html'), beam)
 writeFileSync(join(here, 'pillar.html'), pillar)
