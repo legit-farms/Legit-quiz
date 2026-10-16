@@ -9,14 +9,13 @@
 // After changing this file, use Deploy > Manage deployments > Edit > New version so the live URL picks it up.
 //
 // Stats: run setupStats once from the editor. It builds the "Stats" tab (live formulas + charts)
-// and starts an hourly check that marks which egg codes were used on the website.
+// and starts an hourly check that marks which coupon codes were used on the website.
 
-const HEADERS = ['ID', 'Time', 'Name', 'Phone', 'Product', 'Score', 'Egg code', 'Tour code', 'Codes expire', 'Egg code used']
+const HEADERS = ['ID', 'Time', 'Name', 'Phone', 'Product', 'Score', 'Coupon code', 'Tour code', 'Codes expire', 'Coupon used']
 
 const TOUR_SCORE = 3 // same as TOUR_SCORE in src/App.jsx
 const CODE_HOURS = 24
-const EGG_VARIANT = 'gid://shopify/ProductVariant/45718472196165' // Pasture Raised Legit Eggs, 6 pcs
-const EGG_AMOUNT = '150' // price of the 6 pcs pack, so the pack becomes free
+const COUPON_AMOUNT = '300' // ₹ off the whole order, works on any products
 const SHOPIFY_API = '2026-07'
 
 function doPost(e) {
@@ -61,7 +60,7 @@ function givePrize(sheet, at, lead) {
 
   const [right] = String(lead.score).split('/').map(Number)
   const expires = new Date(Date.now() + CODE_HOURS * 3600 * 1000)
-  const eggCode = 'EGG-' + randomCode()
+  const eggCode = 'LF300-' + randomCode()
   const tourCode = right >= TOUR_SCORE ? 'TOUR-' + randomCode() : ''
 
   createEggDiscount(eggCode, expires, lead)
@@ -77,7 +76,7 @@ function createEggDiscount(code, expires, lead) {
     }
   }`
   const input = {
-    title: `Quiz prize: 6 eggs for ${lead.name} (${lead.phone})`,
+    title: `Quiz prize: ₹300 off for ${lead.name} (${lead.phone})`,
     code,
     startsAt: new Date().toISOString(),
     endsAt: expires.toISOString(),
@@ -85,8 +84,8 @@ function createEggDiscount(code, expires, lead) {
     appliesOncePerCustomer: true,
     context: { all: 'ALL' },
     customerGets: {
-      value: { discountAmount: { amount: EGG_AMOUNT, appliesOnEachItem: false } },
-      items: { products: { productVariantsToAdd: [EGG_VARIANT] } },
+      value: { discountAmount: { amount: COUPON_AMOUNT, appliesOnEachItem: false } },
+      items: { all: true },
     },
   }
   const result = shopify(query, { input })
@@ -202,9 +201,9 @@ function setupStats() {
     ['Average score', `=IFERROR(AVERAGE(ARRAYFORMULA(${right})),0)`, '0.0'],
     ['Perfect scores', `=SUMPRODUCT((ARRAYFORMULA(${right})<>"")*(ARRAYFORMULA(${right})=ARRAYFORMULA(${outOf})))`],
     ['Played today', `=COUNTIFS(${L}B2:B,">="&TODAY())`],
-    ['Egg codes given', `=COUNTIF(${L}G2:G,"EGG-*")`],
+    ['Coupons given', `=COUNTIF(${L}G2:G,"?*")`],
     ['Farm tours won', `=COUNTIF(${L}H2:H,"TOUR-*")`],
-    ['Egg codes used', `=COUNTIF(${L}J2:J,"Yes")`],
+    ['Coupons used', `=COUNTIF(${L}J2:J,"Yes")`],
     ['Code use rate', '=IFERROR(D12/H9,0)', '0%'],
     ['Codes still live', `=COUNTIFS(${L}I2:I,">"&NOW(),${L}J2:J,"<>Yes")`],
   ]
@@ -282,7 +281,7 @@ function installSyncTrigger() {
   ScriptApp.newTrigger('syncRedemptions').timeBased().everyHours(1).create()
 }
 
-// Marks "Egg code used" = Yes once Shopify shows the code was used at checkout.
+// Marks "Coupon used" = Yes once Shopify shows the code was used at checkout.
 // Only looks at codes from the last 3 days, since older ones have expired.
 function syncRedemptions() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]

@@ -16,7 +16,7 @@ import eggBox from './assets/cat-eggs.png'
 
 const LETTERS = ['a', 'b', 'c', 'd', 'e']
 const RING = 2 * Math.PI * 54
-// score needed to win the farm tour on top of the 6 eggs
+// score needed to win the farm tour on top of the ₹300 coupon
 const TOUR_SCORE = 3
 const CONFETTI = Array.from({ length: 18 }, (_, i) => ({
   left: `${(i * 37) % 100}%`,
@@ -189,14 +189,14 @@ function Home({ player, onChangePlayer, onPick }) {
         <img className="hero-logo" src={logoCream} alt="Legit Farms - Guaranteed Goodness" />
 
         <div className="hero-copy">
-          <span className="hero-pill">🎁 Play &amp; win free eggs</span>
+          <span className="hero-pill">🎁 Play &amp; win ₹300 off</span>
           <h1>
             Let's find out how much you know <span>about your food</span>
           </h1>
           <p>5 quick questions. 1 minute.</p>
           <div className="hero-prizes">
             <span>
-              <i className="chip-egg" aria-hidden="true" /> 6 free eggs
+              <i className="chip-egg" aria-hidden="true" /> ₹300 off coupon
             </span>
             <span>🚜 Score 3+ for a farm tour</span>
           </div>
@@ -488,10 +488,9 @@ function useTimeLeft(iso) {
   return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m left`
 }
 
-// Shopify cart link: puts one 6 pcs pack in the cart, applies the code and opens checkout
-const EGG_VARIANT_ID = '45718472196165'
-const eggCheckoutUrl = (code) =>
-  `https://www.legitfarms.com/cart/${EGG_VARIANT_ID}:1?discount=${encodeURIComponent(code)}`
+// Shopify discount link: applies the code to their session and opens the shop
+const couponShopUrl = (code) =>
+  `https://www.legitfarms.com/discount/${encodeURIComponent(code)}?redirect=/collections/all`
 // the theme's tour form reads ?tour_code= and fills "Anything else we should know?" with this message
 const tourUrl = (code) =>
   `https://www.legitfarms.com/pages/farm-tour?tour_code=${encodeURIComponent(code)}#farm-tour-enquire`
@@ -658,15 +657,15 @@ function Result({ quiz, results, prize, name, onRetry }) {
               tone="egg"
               icon={<img src={eggBox} alt="" />}
               kicker={hasTour ? 'Prize 1' : 'Your prize'}
-              title="6 pasture-raised eggs"
-              worth="₹150"
+              title="₹300 off coupon"
+              worth="₹300"
               code={prize.eggCode}
               loading={loading}
-              action={{ label: 'Claim my eggs', url: prize.eggCode && eggCheckoutUrl(prize.eggCode) }}
+              action={{ label: 'Shop with my coupon', url: prize.eggCode && couponShopUrl(prize.eggCode) }}
               steps={[
-                'Tap “Claim my eggs”. The eggs go in your cart with the code applied.',
-                'Enter your delivery address at checkout.',
-                'Your 6 eggs show as ₹0. Place the order and you’re done!',
+                'Tap “Shop with my coupon”. Your code is applied for you.',
+                'Add any Legit Farms products to your cart.',
+                'At checkout ₹300 comes off your order. Place it and you’re done!',
               ]}
             />
             {hasTour && (
