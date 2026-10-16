@@ -112,7 +112,9 @@ function createEggDiscount(code, expires, lead) {
 
 // ---------- OTP (Twilio Verify) ----------
 
+// One quiz per number: once a number has a coupon, it can't get another OTP to play again.
 function sendOtp(phone) {
+  if (hasPlayed(phone)) return { error: 'already-played' }
   const res = twilio('Verifications', { To: toE164(phone), Channel: 'sms' })
   if (res.status === 'pending') return { ok: true }
   return { error: res.message || 'Could not send the code' }
@@ -124,6 +126,14 @@ function checkOtp(phone, code) {
   // remembered for good, so a player can reload the result page and still get their coupon
   PropertiesService.getScriptProperties().setProperty('verified:' + digits(phone), String(Date.now()))
   return { ok: true }
+}
+
+function hasPlayed(phone) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]
+  const last = sheet.getLastRow()
+  if (last < 2) return false
+  const rows = sheet.getRange(2, 4, last - 1, 4).getValues() // Phone .. Coupon code
+  return rows.some((r) => r[3] && digits(r[0]) === digits(phone))
 }
 
 function isVerified(phone) {

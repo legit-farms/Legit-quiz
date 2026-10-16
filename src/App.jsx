@@ -128,7 +128,11 @@ function Details({ quiz, onSubmit, onBack }) {
       setCode('')
       setWait(30)
     } catch (err) {
-      setError(`Couldn't send the code. ${err.message}`)
+      setError(
+        err.message === 'already-played'
+          ? 'This number has already played the quiz. Each number can play only once.'
+          : `Couldn't send the code. ${err.message}`
+      )
     } finally {
       setBusy(false)
     }
