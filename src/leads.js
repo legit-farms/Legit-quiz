@@ -1,4 +1,4 @@
-// Visitor details are kept in this browser's storage (this device only).
+ // Visitor details are kept in this browser's storage (this device only).
 // Open the site with #leads at the end of the address to see and download them.
 // If VITE_SHEET_URL is set, every entry is also sent to the Google Sheet (see google-sheet.gs).
 
