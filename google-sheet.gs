@@ -7,10 +7,12 @@
 //   SHOPIFY_CLIENT_SECRET  client secret of that app
 // (or SHOPIFY_TOKEN instead of the client ID/secret if you have an old-style shpat_ admin token)
 //
-// OTP: players verify their phone with Twilio Verify before the quiz. Add these script properties too:
-//   TWILIO_ACCOUNT_SID     AC... (Twilio Console home page)
-//   TWILIO_AUTH_TOKEN      auth token from the same page
-//   TWILIO_VERIFY_SID      VA... (Console > Verify > Services > create a service)
+// OTP: players get a code on WhatsApp (Meta WhatsApp Cloud API) before the quiz. Add these script properties too:
+//   WHATSAPP_TOKEN         permanent token of a System User with whatsapp_business_messaging
+//                          (Business Settings > Users > System users > Generate token)
+//   WHATSAPP_PHONE_ID      Phone number ID (developers.facebook.com > your app > WhatsApp > API Setup)
+//   WHATSAPP_TEMPLATE      name of an approved Authentication template with a "Copy code" button, e.g. quiz_otp
+//   WHATSAPP_LANG          optional, the template's language code (default en)
 // After changing this file, use Deploy > Manage deployments > Edit > New version so the live URL picks it up.
 //
 // Stats: run setupStats once from the editor. It builds the "Stats" tab (live formulas + charts)
@@ -22,6 +24,7 @@ const TOUR_SCORE = 3 // same as TOUR_SCORE in src/App.jsx
 const CODE_HOURS = 24
 const COUPON_AMOUNT = '303' // ₹ off the whole order, works on any products
 const SHOPIFY_API = '2026-07'
+const GRAPH_API = 'v23.0' // Meta Graph API version for WhatsApp
 
 function doPost(e) {
   const lead = JSON.parse(e.postData.contents)
@@ -110,19 +113,40 @@ function createEggDiscount(code, expires, lead) {
   }
 }
 
-// ---------- OTP (Twilio Verify) ----------
+// ---------- OTP (WhatsApp Cloud API) ----------
+// Meta only delivers the message, so the code is made, kept and checked here.
+
+const OTP_MINUTES = 10
+const OTP_TRIES = 5 // wrong guesses before the code is thrown away
+const OTP_RESEND_SECONDS = 30 // same as the resend countdown in src/App.jsx
 
 // One quiz per number: once a number has a coupon, it can't get another OTP to play again.
 function sendOtp(phone) {
   if (hasPlayed(phone)) return { error: 'already-played' }
-  const res = twilio('Verifications', { To: toE164(phone), Channel: 'sms' })
-  if (res.status === 'pending') return { ok: true }
-  return { error: res.message || 'Could not send the code' }
+  const cache = CacheService.getScriptCache()
+  const key = 'otp:' + digits(phone)
+  const old = JSON.parse(cache.get(key) || 'null')
+  if (old && Date.now() - old.sent < OTP_RESEND_SECONDS * 1000) return { error: 'Please wait a few seconds before asking again' }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000))
+  const res = whatsappOtp(phone, code)
+  if (!res.messages) return { error: (res.error && res.error.message) || 'Could not send the code' }
+  cache.put(key, JSON.stringify({ code, tries: 0, sent: Date.now() }), OTP_MINUTES * 60)
+  return { ok: true }
 }
 
 function checkOtp(phone, code) {
-  const res = twilio('VerificationCheck', { To: toE164(phone), Code: String(code) })
-  if (res.status !== 'approved') return { error: res.message || 'Wrong code' }
+  const cache = CacheService.getScriptCache()
+  const key = 'otp:' + digits(phone)
+  const saved = JSON.parse(cache.get(key) || 'null')
+  if (!saved) return { error: 'Code expired' }
+  if (saved.code !== String(code)) {
+    saved.tries++
+    if (saved.tries >= OTP_TRIES) cache.remove(key)
+    else cache.put(key, JSON.stringify(saved), OTP_MINUTES * 60)
+    return { error: 'Wrong code' }
+  }
+  cache.remove(key)
   // remembered for good, so a player can reload the result page and still get their coupon
   PropertiesService.getScriptProperties().setProperty('verified:' + digits(phone), String(Date.now()))
   return { ok: true }
@@ -140,21 +164,34 @@ function isVerified(phone) {
   return Boolean(PropertiesService.getScriptProperties().getProperty('verified:' + digits(phone)))
 }
 
-function twilio(endpoint, payload) {
-  const auth = Utilities.base64Encode(prop('TWILIO_ACCOUNT_SID') + ':' + prop('TWILIO_AUTH_TOKEN'))
-  const res = UrlFetchApp.fetch(`https://verify.twilio.com/v2/Services/${prop('TWILIO_VERIFY_SID')}/${endpoint}`, {
+// Sends an Authentication template; the code fills the body and the "Copy code" button.
+function whatsappOtp(phone, code) {
+  const props = PropertiesService.getScriptProperties()
+  const res = UrlFetchApp.fetch(`https://graph.facebook.com/${GRAPH_API}/${prop('WHATSAPP_PHONE_ID')}/messages`, {
     method: 'post',
-    headers: { Authorization: 'Basic ' + auth },
-    payload,
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + prop('WHATSAPP_TOKEN') },
+    payload: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: '91' + digits(phone),
+      type: 'template',
+      template: {
+        name: prop('WHATSAPP_TEMPLATE'),
+        language: { code: props.getProperty('WHATSAPP_LANG') || 'en' },
+        components: [
+          { type: 'body', parameters: [{ type: 'text', text: code }] },
+          { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: code }] },
+        ],
+      },
+    }),
     muteHttpExceptions: true,
   })
   return JSON.parse(res.getContentText())
 }
 
 const digits = (phone) => String(phone).replace(/\D/g, '').slice(-10)
-const toE164 = (phone) => '+91' + digits(phone)
 
-// Run this once from the editor with your own number to check the Twilio setup.
+// Run this once from the editor (put your own number in) to check the WhatsApp setup.
 function testOtp() {
   Logger.log(JSON.stringify(sendOtp('9999999999')))
 }
