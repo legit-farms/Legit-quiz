@@ -1,4 +1,4 @@
- import { useEffect, useRef, useState } from 'react'
+  import { useEffect, useRef, useState } from 'react'
 import { categories, quizzes } from './data/quizzes.js'
 import {
   addLead,
