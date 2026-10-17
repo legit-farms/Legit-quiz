@@ -7,9 +7,15 @@
 //   SHOPIFY_CLIENT_SECRET  client secret of that app
 // (or SHOPIFY_TOKEN instead of the client ID/secret if you have an old-style shpat_ admin token)
 //
-// OTP: players verify their phone with an SMS code from 2Factor.in before the quiz. Add this script property too:
-//   TWOFACTOR_API_KEY      API key from the 2Factor dashboard (2factor.in > login > API key at the top)
-//   TWOFACTOR_TEMPLATE     optional, name of your approved OTP SMS template (2Factor's default is used if blank)
+// OTP: players get a code on WhatsApp (Meta WhatsApp Cloud API) before the quiz. Add these script properties too:
+//   WHATSAPP_TOKEN         permanent token of a System User with whatsapp_business_messaging
+//                          (Business Settings > Users > System users > Generate token)
+//   WHATSAPP_PHONE_ID      Phone number ID (developers.facebook.com > your app > WhatsApp > API Setup)
+//   WHATSAPP_TEMPLATE      name of an approved Authentication template with a "Copy code" button, e.g. quiz_otp
+//   WHATSAPP_LANG          optional, the template's language code (default en)
+//   WHATSAPP_WABA_ID       optional, WhatsApp Business Account ID (API Setup page), only for checkWhatsAppAccount
+// The WhatsApp account needs a payment method (WhatsApp Manager > Payment settings), or Meta accepts
+// the message and then silently drops it. To check the setup, run testWhatsApp, checkWhatsAppAccount, then testOtp.
 // After changing this file, use Deploy > Manage deployments > Edit > New version so the live URL picks it up.
 //
 // Stats: run setupStats once from the editor. It builds the "Stats" tab (live formulas + charts)
@@ -21,9 +27,11 @@ const TOUR_SCORE = 3 // same as TOUR_SCORE in src/App.jsx
 const CODE_HOURS = 24
 const COUPON_AMOUNT = '303' // ₹ off the whole order, works on any products
 const SHOPIFY_API = '2026-07'
+const GRAPH_API = 'v23.0' // Meta Graph API version for WhatsApp
 
 function doPost(e) {
   const lead = JSON.parse(e.postData.contents)
+  if (lead.object === 'whatsapp_business_account') return logWhatsAppStatus(lead)
   // OTP calls don't touch the sheet, so they skip the lock
   try {
     if (lead.action === 'otp-send') return json(sendOtp(lead.phone))
@@ -109,8 +117,8 @@ function createEggDiscount(code, expires, lead) {
   }
 }
 
-// ---------- OTP (2Factor.in SMS) ----------
-// 2Factor makes the code and checks it; we keep its session ID per number between the two calls.
+// ---------- OTP (WhatsApp Cloud API) ----------
+// Meta only delivers the message, so the code is made, kept and checked here.
 
 const OTP_MINUTES = 10
 const OTP_TRIES = 5 // wrong guesses before the code is thrown away
@@ -124,10 +132,10 @@ function sendOtp(phone) {
   const old = JSON.parse(cache.get(key) || 'null')
   if (old && Date.now() - old.sent < OTP_RESEND_SECONDS * 1000) return { error: 'Please wait a few seconds before asking again' }
 
-  const template = PropertiesService.getScriptProperties().getProperty('TWOFACTOR_TEMPLATE')
-  const res = twoFactor(`SMS/91${digits(phone)}/AUTOGEN` + (template ? '/' + encodeURIComponent(template) : ''))
-  if (res.Status !== 'Success') return { error: res.Details || 'Could not send the code' }
-  cache.put(key, JSON.stringify({ session: res.Details, tries: 0, sent: Date.now() }), OTP_MINUTES * 60)
+  const code = String(Math.floor(100000 + Math.random() * 900000))
+  const res = whatsappOtp(phone, code)
+  if (!res.messages) return { error: (res.error && res.error.message) || 'Could not send the code' }
+  cache.put(key, JSON.stringify({ code, tries: 0, sent: Date.now() }), OTP_MINUTES * 60)
   return { ok: true }
 }
 
@@ -136,12 +144,11 @@ function checkOtp(phone, code) {
   const key = 'otp:' + digits(phone)
   const saved = JSON.parse(cache.get(key) || 'null')
   if (!saved) return { error: 'Code expired' }
-  const res = twoFactor(`SMS/VERIFY/${saved.session}/${String(code).replace(/\D/g, '')}`)
-  if (res.Status !== 'Success') {
+  if (saved.code !== String(code)) {
     saved.tries++
     if (saved.tries >= OTP_TRIES) cache.remove(key)
     else cache.put(key, JSON.stringify(saved), OTP_MINUTES * 60)
-    return { error: res.Details || 'Wrong code' }
+    return { error: 'Wrong code' }
   }
   cache.remove(key)
   // remembered for good, so a player can reload the result page and still get their coupon
@@ -161,27 +168,125 @@ function isVerified(phone) {
   return Boolean(PropertiesService.getScriptProperties().getProperty('verified:' + digits(phone)))
 }
 
-// 2Factor answers { Status: 'Success' | 'Error', Details: session ID or message }
-function twoFactor(path) {
-  const res = UrlFetchApp.fetch(`https://2factor.in/API/V1/${prop('TWOFACTOR_API_KEY').trim()}/${path}`, { muteHttpExceptions: true })
-  try {
-    return JSON.parse(res.getContentText())
-  } catch (err) {
-    return { Status: 'Error', Details: res.getContentText() }
-  }
+// Sends an Authentication template; the code fills the body and the "Copy code" button.
+function whatsappOtp(phone, code) {
+  const props = PropertiesService.getScriptProperties()
+  const res = UrlFetchApp.fetch(`https://graph.facebook.com/${GRAPH_API}/${prop('WHATSAPP_PHONE_ID').trim()}/messages`, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + whatsappToken() },
+    payload: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: '91' + digits(phone),
+      type: 'template',
+      template: {
+        name: prop('WHATSAPP_TEMPLATE').trim(),
+        language: { code: props.getProperty('WHATSAPP_LANG') || 'en' },
+        components: [
+          { type: 'body', parameters: [{ type: 'text', text: code }] },
+          { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: code }] },
+        ],
+      },
+    }),
+    muteHttpExceptions: true,
+  })
+  return JSON.parse(res.getContentText())
 }
 
 const digits = (phone) => String(phone).replace(/\D/g, '').slice(-10)
 
-// Run this once from the editor (put your own number in) to check the 2Factor setup.
+const TEST_PHONE = '8105369922' // number the editor tests below send to
+
+// Sends a dummy code (123456) to TEST_PHONE and logs Meta's full answer, skipping the one-quiz check.
+// "accepted" only means Meta took it; whether it arrived shows up in the "WhatsApp log" tab (webhook below).
 function testOtp() {
-  Logger.log(JSON.stringify(sendOtp('9999999999')))
+  Logger.log(JSON.stringify(whatsappOtp(TEST_PHONE, '123456')))
 }
 
-// Checks the key without sending an SMS: should log your SMS balance.
-function testTwoFactorKey() {
-  Logger.log('key length: ' + prop('TWOFACTOR_API_KEY').trim().length)
-  Logger.log(JSON.stringify(twoFactor('BAL/SMS')))
+// Checks the token and phone ID without sending a message: logs the WhatsApp number's name,
+// or Meta's exact error (code 190 = token expired or wrong, 100 = phone ID wrong or not shared with the token).
+function testWhatsApp() {
+  const token = whatsappToken()
+  // a Meta token starts with EAA; anything else is the wrong value pasted in
+  Logger.log(`token length: ${token.length}, starts with: ${token.slice(0, 4)}${/^EAA/.test(token) ? '' : '  <- not a Meta token, should start with EAA'}`)
+  const res = UrlFetchApp.fetch(`https://graph.facebook.com/${GRAPH_API}/${prop('WHATSAPP_PHONE_ID').trim()}?fields=display_phone_number,verified_name`, {
+    headers: { Authorization: 'Bearer ' + token },
+    muteHttpExceptions: true,
+  })
+  Logger.log(res.getContentText())
+}
+
+// Checks the WhatsApp account end to end and logs anything that would stop delivery.
+// Needs one more script property: WHATSAPP_WABA_ID (WhatsApp Business Account ID, shown on the
+// API Setup page next to the Phone number ID). Also subscribes this app to the account so webhooks arrive.
+function checkWhatsAppAccount() {
+  const waba = prop('WHATSAPP_WABA_ID').trim()
+  const graph = (method, path) => {
+    const res = UrlFetchApp.fetch(`https://graph.facebook.com/${GRAPH_API}/${path}`, {
+      method,
+      headers: { Authorization: 'Bearer ' + whatsappToken() },
+      muteHttpExceptions: true,
+    })
+    return JSON.parse(res.getContentText())
+  }
+
+  const phone = graph('get', `${prop('WHATSAPP_PHONE_ID').trim()}?fields=display_phone_number,verified_name,status,name_status,quality_rating,messaging_limit_tier,account_mode,code_verification_status`)
+  Logger.log('PHONE NUMBER: ' + JSON.stringify(phone))
+  Logger.log('  want status CONNECTED, name_status APPROVED, account_mode LIVE')
+
+  const name = prop('WHATSAPP_TEMPLATE').trim()
+  const templates = graph('get', `${waba}/message_templates?name=${encodeURIComponent(name)}&fields=name,status,category,language,components`)
+  Logger.log('TEMPLATE: ' + JSON.stringify(templates))
+  Logger.log(`  want status APPROVED, category AUTHENTICATION, language = WHATSAPP_LANG (now "${PropertiesService.getScriptProperties().getProperty('WHATSAPP_LANG') || 'en'}")`)
+
+  Logger.log('SUBSCRIBE APP FOR WEBHOOKS: ' + JSON.stringify(graph('post', `${waba}/subscribed_apps`)))
+  Logger.log('SUBSCRIBED APPS: ' + JSON.stringify(graph('get', `${waba}/subscribed_apps`)))
+}
+
+// ---------- WhatsApp webhook ----------
+// Meta reports delivery (sent / delivered / read / failed + reason) only through a webhook.
+// In developers.facebook.com > your app > WhatsApp > Configuration > Webhook, set
+//   Callback URL   this web app's URL (same as VITE_SHEET_URL)
+//   Verify token   legitfarms
+// then subscribe to the "messages" field. Every status lands in the "WhatsApp log" tab.
+
+function doGet(e) {
+  const p = (e && e.parameter) || {}
+  if (p['hub.mode'] === 'subscribe' && p['hub.verify_token'] === 'legitfarms') {
+    return ContentService.createTextOutput(p['hub.challenge'])
+  }
+  return ContentService.createTextOutput('ok')
+}
+
+function logWhatsAppStatus(body) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet()
+  const sheet = ss.getSheetByName('WhatsApp log') || ss.insertSheet('WhatsApp log', ss.getNumSheets())
+  if (sheet.getLastRow() === 0) sheet.appendRow(['Time', 'To', 'Status', 'Error code', 'Error', 'Details', 'Message ID'])
+  ;(body.entry || []).forEach((entry) =>
+    (entry.changes || []).forEach((change) =>
+      ((change.value && change.value.statuses) || []).forEach((s) => {
+        const err = (s.errors && s.errors[0]) || {}
+        sheet.appendRow([
+          new Date(Number(s.timestamp) * 1000),
+          "'" + s.recipient_id,
+          s.status,
+          err.code || '',
+          err.title || err.message || '',
+          (err.error_data && err.error_data.details) || '',
+          s.id,
+        ])
+      })
+    )
+  )
+  return ContentService.createTextOutput('ok')
+}
+
+// tolerate a token pasted with spaces, line breaks, quotes, "WHATSAPP_TOKEN=" or a leading "Bearer"
+function whatsappToken() {
+  return prop('WHATSAPP_TOKEN')
+    .replace(/^\s*WHATSAPP_TOKEN\s*=/i, '')
+    .replace(/^\s*Bearer\s+/i, '')
+    .replace(/["'\s]/g, '')
 }
 
 function shopify(query, variables) {

@@ -66,7 +66,7 @@ export async function claimPrize(id, score) {
   return prize
 }
 
-// OTP via the sheet script (it holds the 2Factor key). Both throw with a message to show the player.
+// OTP via the sheet script (it holds the WhatsApp keys). Both throw with a message to show the player.
 async function otp(action, body) {
   const res = await fetch(SHEET_URL, {
     method: 'POST',
