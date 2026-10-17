@@ -218,7 +218,7 @@ function Details({ quiz, onSubmit, onBack }) {
       {code !== null && (
         <div className="field otp">
           <span>
-            OTP sent on WhatsApp to +91 {phone}{' '}
+            OTP sent to +91 {phone}{' '}
             <button type="button" className="link" onClick={() => setCode(null)}>
               Change
             </button>
