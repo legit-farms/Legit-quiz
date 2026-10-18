@@ -66,7 +66,7 @@ export async function claimPrize(id, score) {
   return prize
 }
 
-// OTP via the sheet script (it holds the WhatsApp keys). Both throw with a message to show the player.
+// Calls to the sheet script (it holds the WhatsApp keys). Throws with a message to show the player.
 async function otp(action, body) {
   const res = await fetch(SHEET_URL, {
     method: 'POST',
@@ -75,6 +75,18 @@ async function otp(action, body) {
   })
   const out = await res.json()
   if (!out.ok) throw new Error(out.error || 'Something went wrong')
+  return out
+}
+
+// One quiz per number: true if this number already finished a quiz (on any device).
+// If the sheet can't be reached, let them play; the sheet still gives a repeat player their old codes.
+export async function hasPlayed(phone) {
+  if (!SHEET_URL) return false
+  try {
+    return (await otp('played', { phone })).played
+  } catch {
+    return false
+  }
 }
 
 // OTP is switched off for now: players go straight from details to the quiz.

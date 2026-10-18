@@ -26,18 +26,39 @@ const HEADERS = ['ID', 'Time', 'Name', 'Phone', 'Product', 'Score', 'Coupon code
 const TOUR_SCORE = 3 // same as TOUR_SCORE in src/App.jsx
 const CODE_HOURS = 24
 const COUPON_AMOUNT = '303' // ₹ off the whole order, works on any products
+const COUPON_MIN_ORDER = '500' // ₹ the cart must reach before the coupon works
+const MAX_PRIZES_PER_HOUR = 50 // safety cap: the web app URL is public, so stop anyone farming coupons
 const SHOPIFY_API = '2026-07'
 const GRAPH_API = 'v23.0' // Meta Graph API version for WhatsApp
+const OTP_REQUIRED = false // same as otpEnabled in src/leads.js; while false, prizes don't need a verified number
 
 function doPost(e) {
-  const lead = JSON.parse(e.postData.contents)
+  let lead
+  try {
+    lead = JSON.parse(e.postData.contents)
+  } catch (err) {
+    return json({ error: 'Bad request' })
+  }
   if (lead.object === 'whatsapp_business_account') return logWhatsAppStatus(lead)
   // OTP calls don't touch the sheet, so they skip the lock
   try {
-    if (lead.action === 'otp-send') return json(sendOtp(lead.phone))
+    // while OTP is off nobody should be able to trigger (paid) WhatsApp messages
+    if (lead.action === 'otp-send') return json(OTP_REQUIRED ? sendOtp(lead.phone) : { error: 'OTP is turned off' })
     if (lead.action === 'otp-check') return json(checkOtp(lead.phone, lead.code))
+    if (lead.action === 'played') return json({ ok: true, played: validPhone(lead.phone) && hasPlayed(lead.phone) })
   } catch (err) {
     return json({ error: String(err.message || err) })
+  }
+
+  // anything else must be a real quiz entry; the URL is public, so junk is dropped instead of saved
+  const phone = String(lead.phone || '')
+  const score = /^\d{1,2}\/\d{1,2}$/.test(String(lead.score || '')) ? String(lead.score) : ''
+  if (!/^\d{10,16}$/.test(String(lead.id)) || !validPhone(phone) || !lead.name || !lead.quiz) {
+    return json({ error: 'Invalid entry' })
+  }
+  if (score) {
+    const [right, total] = score.split('/').map(Number)
+    if (right > total) return json({ error: 'Invalid entry' })
   }
 
   const lock = LockService.getScriptLock()
@@ -46,17 +67,22 @@ function doPost(e) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS])
 
+    const time = new Date(lead.time)
     const row = [
       String(lead.id),
-      new Date(lead.time),
-      lead.name,
-      "'" + lead.phone, // keep the number as text so Sheets doesn't mangle it
-      lead.quiz,
-      lead.score ? "'" + lead.score : '', // "3/5" would otherwise turn into a date
+      isNaN(time) ? new Date() : time,
+      asText(lead.name, 60),
+      "'" + phone, // keep the number as text so Sheets doesn't mangle it
+      asText(lead.quiz, 40),
+      score ? "'" + score : '', // "3/5" would otherwise turn into a date
     ]
 
     // a quiz start adds a row; finishing the quiz fills in the score on that same row
     const rowNum = findRow(sheet, 1, String(lead.id))
+    // an entry can only be updated by the same number, so nobody can overwrite someone else's row
+    if (rowNum && digits(sheet.getRange(rowNum, 4).getValue()) !== digits(phone)) {
+      return json({ error: 'Invalid entry' })
+    }
     const at = rowNum || sheet.getLastRow() + 1
     sheet.getRange(at, 1, 1, row.length).setValues([row])
 
@@ -78,7 +104,12 @@ function givePrize(sheet, at, lead) {
     return { eggCode: earlier[6], tourCode: earlier[7] || '', expires: new Date(earlier[8]).toISOString(), repeat: true }
   }
 
-  if (!isVerified(phone)) return { error: 'Phone number not verified' }
+  if (OTP_REQUIRED && !isVerified(phone)) return { error: 'Phone number not verified' }
+
+  // codes expire CODE_HOURS after they're made, so "expires more than CODE_HOURS - 1 from now" = made in the last hour
+  const hourAgo = Date.now() + (CODE_HOURS - 1) * 3600 * 1000
+  const lastHour = data.filter((r) => r[6] && new Date(r[8]).getTime() > hourAgo).length
+  if (lastHour >= MAX_PRIZES_PER_HOUR) return { error: 'Too many prizes right now, please try again later' }
 
   const [right] = String(lead.score).split('/').map(Number)
   const expires = new Date(Date.now() + CODE_HOURS * 3600 * 1000)
@@ -105,6 +136,7 @@ function createEggDiscount(code, expires, lead) {
     usageLimit: 1,
     appliesOncePerCustomer: true,
     context: { all: 'ALL' },
+    minimumRequirement: { subtotal: { greaterThanOrEqualToSubtotal: COUPON_MIN_ORDER } },
     customerGets: {
       value: { discountAmount: { amount: COUPON_AMOUNT, appliesOnEachItem: false } },
       items: { all: true },
@@ -154,6 +186,29 @@ function checkOtp(phone, code) {
   // remembered for good, so a player can reload the result page and still get their coupon
   PropertiesService.getScriptProperties().setProperty('verified:' + digits(phone), String(Date.now()))
   return { ok: true }
+}
+
+// 10-digit Indian mobile, not an obvious fake like 9999999999 (same rules as looksFake in src/App.jsx)
+function validPhone(phone) {
+  const p = String(phone || '')
+  if (!/^[6-9]\d{9}$/.test(p)) return false
+  if (new Set(p).size < 3 || /(\d)\1{5}/.test(p)) return false
+  if (/^(\d\d)\1{4}$/.test(p) || /^(\d{5})\1$/.test(p)) return false
+  let up = 1
+  let down = 1
+  for (let i = 1; i < p.length; i++) {
+    const step = p[i] - p[i - 1]
+    up = step === 1 || step === -9 ? up + 1 : 1
+    down = step === -1 || step === 9 ? down + 1 : 1
+    if (up >= 7 || down >= 7) return false
+  }
+  return true
+}
+
+// player-typed text: trimmed, capped, and never run as a formula (=, +, -, @ at the start)
+function asText(value, max) {
+  const text = String(value).trim().slice(0, max)
+  return /^[=+\-@]/.test(text) ? "'" + text : text
 }
 
 function hasPlayed(phone) {

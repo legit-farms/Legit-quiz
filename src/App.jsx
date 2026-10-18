@@ -5,6 +5,7 @@ import {
   checkOtp,
   claimPrize,
   clearLeads,
+  hasPlayed,
   leadsCsv,
   otpEnabled,
   readLeads,
@@ -171,6 +172,13 @@ function Details({ quiz, onSubmit, onBack }) {
       return
     }
     if (!otpEnabled) {
+      setBusy(true)
+      setError('')
+      if (await hasPlayed(phone)) {
+        setError('This number has already played the quiz. Each number can play only once.')
+        setBusy(false)
+        return
+      }
       onSubmit(cleanName, phone)
       return
     }
@@ -763,7 +771,7 @@ function Result({ quiz, results, prize, name, onRetry }) {
               action={{ label: 'Shop with my coupon', url: prize.eggCode && couponShopUrl(prize.eggCode) }}
               steps={[
                 'Tap “Shop with my coupon”. Your code is applied for you.',
-                'Add any Legit Farms products to your cart.',
+                'Add Legit Farms products worth ₹500 or more to your cart.',
                 'At checkout ₹303 comes off your order. Place it and you’re done!',
               ]}
             />
