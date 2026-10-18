@@ -306,10 +306,12 @@ function chatrace(method, path, body) {
 }
 
 // Checks the Chatrace token and setup without sending anything: logs the flows (pick the
-// Quiz OTP one for CHATRACE_FLOW_ID) and whether the otp_code custom field exists.
+// Quiz OTP one for CHATRACE_FLOW_ID) and makes the otp_code custom field if it's missing.
 function testChatrace() {
   Logger.log('FLOWS: ' + JSON.stringify(chatrace('get', '/accounts/flows')))
-  Logger.log('OTP FIELD: ' + JSON.stringify(chatrace('get', '/accounts/custom_fields/name/' + CHATRACE_OTP_FIELD)))
+  let field = chatrace('get', '/accounts/custom_fields/name/' + CHATRACE_OTP_FIELD)
+  if (!field.ok) field = chatrace('post', '/accounts/custom_fields', { name: CHATRACE_OTP_FIELD, type: 0, description: 'Quiz OTP code' })
+  Logger.log('OTP FIELD: ' + JSON.stringify(field))
 }
 
 const digits = (phone) => String(phone).replace(/\D/g, '').slice(-10)
