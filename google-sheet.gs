@@ -30,7 +30,7 @@ const COUPON_MIN_ORDER = '500' // ₹ the cart must reach before the coupon work
 const MAX_PRIZES_PER_HOUR = 50 // safety cap: the web app URL is public, so stop anyone farming coupons
 const SHOPIFY_API = '2026-07'
 const GRAPH_API = 'v23.0' // Meta Graph API version for WhatsApp
-const OTP_REQUIRED = false // same as otpEnabled in src/leads.js; while false, prizes don't need a verified number
+const OTP_REQUIRED = true // same as otpEnabled in src/leads.js; while false, prizes don't need a verified number
 
 function doPost(e) {
   let lead
