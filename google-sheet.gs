@@ -16,6 +16,7 @@
 //   WHATSAPP_WABA_ID       optional, WhatsApp Business Account ID (API Setup page), only for checkWhatsAppAccount
 // The WhatsApp account needs a payment method (WhatsApp Manager > Payment settings), or Meta accepts
 // the message and then silently drops it. To check the setup, run testWhatsApp, checkWhatsAppAccount, then testOtp.
+// To send codes through Chatrace instead, see "OTP via Chatrace" below.
 // After changing this file, use Deploy > Manage deployments > Edit > New version so the live URL picks it up.
 //
 // Stats: run setupStats once from the editor. It builds the "Stats" tab (live formulas + charts)
@@ -165,8 +166,8 @@ function sendOtp(phone) {
   if (old && Date.now() - old.sent < OTP_RESEND_SECONDS * 1000) return { error: 'Please wait a few seconds before asking again' }
 
   const code = String(Math.floor(100000 + Math.random() * 900000))
-  const res = whatsappOtp(phone, code)
-  if (!res.messages) return { error: (res.error && res.error.message) || 'Could not send the code' }
+  const error = deliverOtp(phone, code)
+  if (error) return { error }
   cache.put(key, JSON.stringify({ code, tries: 0, sent: Date.now() }), OTP_MINUTES * 60)
   return { ok: true }
 }
@@ -248,14 +249,80 @@ function whatsappOtp(phone, code) {
   return JSON.parse(res.getContentText())
 }
 
+// Sends the code through Chatrace when CHATRACE_TOKEN is set, otherwise straight through Meta.
+// Returns an error message, or '' when the code went out.
+function deliverOtp(phone, code) {
+  if (PropertiesService.getScriptProperties().getProperty('CHATRACE_TOKEN')) {
+    const res = chatraceOtp(phone, code)
+    return res.ok ? '' : 'Could not send the code'
+  }
+  const res = whatsappOtp(phone, code)
+  return res.messages ? '' : (res.error && res.error.message) || 'Could not send the code'
+}
+
+// ---------- OTP via Chatrace ----------
+// Chatrace can't send a template by API directly, so the code goes into a contact custom field
+// and a Chatrace flow sends the quiz_otp template with that field. Set up in Chatrace once:
+//   1. Settings > Custom fields: add a Text field named otp_code
+//   2. Flows: make a flow "Quiz OTP" whose only step is a WhatsApp template message, template quiz_otp,
+//      with {{otp_code}} as the body variable and as the "Copy code" button value
+// then add script properties CHATRACE_TOKEN (Settings > API access token) and CHATRACE_FLOW_ID
+// (run testChatrace to list the flow IDs). Optional: CHATRACE_API if your panel has its own API address.
+
+const CHATRACE_OTP_FIELD = 'otp_code'
+
+function chatraceOtp(phone, code) {
+  const number = '+91' + digits(phone)
+  const actions = [
+    { action: 'set_field_value', field_name: CHATRACE_OTP_FIELD, value: code },
+    { action: 'send_flow', flow_id: prop('CHATRACE_FLOW_ID').trim() },
+  ]
+  const found = chatrace('get', `/contacts/find_by_custom_field?field_id=phone&value=${encodeURIComponent(number)}`)
+  const contact = found.body && found.body.data && found.body.data[0]
+  return contact
+    ? chatrace('post', `/contacts/${contact.id}/send_content`, { actions, channel: 'whatsapp' })
+    : chatrace('post', '/contacts', { phone: number, actions })
+}
+
+function chatrace(method, path, body) {
+  const base = (PropertiesService.getScriptProperties().getProperty('CHATRACE_API') || 'https://api.chatrace.com').trim().replace(/\/$/, '')
+  const res = UrlFetchApp.fetch(base + path, {
+    method,
+    contentType: 'application/json',
+    headers: { 'X-ACCESS-TOKEN': prop('CHATRACE_TOKEN').replace(/["'\s]/g, '') },
+    payload: body ? JSON.stringify(body) : undefined,
+    muteHttpExceptions: true,
+  })
+  const text = res.getContentText()
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch (err) {
+    parsed = text
+  }
+  const status = res.getResponseCode()
+  const ok = status < 300 && !(parsed && (parsed.success === false || parsed.error))
+  return { ok, status, body: parsed }
+}
+
+// Checks the Chatrace token and setup without sending anything: logs the flows (pick the
+// Quiz OTP one for CHATRACE_FLOW_ID) and whether the otp_code custom field exists.
+function testChatrace() {
+  Logger.log('FLOWS: ' + JSON.stringify(chatrace('get', '/accounts/flows')))
+  Logger.log('OTP FIELD: ' + JSON.stringify(chatrace('get', '/accounts/custom_fields/name/' + CHATRACE_OTP_FIELD)))
+}
+
 const digits = (phone) => String(phone).replace(/\D/g, '').slice(-10)
 
 const TEST_PHONE = '8105369922' // number the editor tests below send to
 
-// Sends a dummy code (123456) to TEST_PHONE and logs Meta's full answer, skipping the one-quiz check.
-// "accepted" only means Meta took it; whether it arrived shows up in the "WhatsApp log" tab (webhook below).
+// Sends a dummy code (123456) to TEST_PHONE the same way players get it (Chatrace or Meta),
+// skipping the one-quiz check, and logs the full answer.
+// For Meta, "accepted" only means Meta took it; whether it arrived shows up in the "WhatsApp log" tab (webhook below).
 function testOtp() {
-  Logger.log(JSON.stringify(whatsappOtp(TEST_PHONE, '123456')))
+  const props = PropertiesService.getScriptProperties()
+  const res = props.getProperty('CHATRACE_TOKEN') ? chatraceOtp(TEST_PHONE, '123456') : whatsappOtp(TEST_PHONE, '123456')
+  Logger.log(JSON.stringify(res))
 }
 
 // Checks the token and phone ID without sending a message: logs the WhatsApp number's name,
