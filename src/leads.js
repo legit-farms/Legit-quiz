@@ -89,9 +89,9 @@ export async function hasPlayed(phone) {
   }
 }
 
-// OTP is switched off for now: players go straight from details to the quiz.
-// Set back to Boolean(SHEET_URL) (and OTP_REQUIRED = true in google-sheet.gs) to turn it on again.
-export const otpEnabled = false
+// Players verify their number with a WhatsApp OTP before the quiz.
+// Set to false to skip OTP (and set OTP_REQUIRED = false in google-sheet.gs).
+export const otpEnabled = Boolean(SHEET_URL)
 export const sendOtp = (phone) => otp('otp-send', { phone })
 export const checkOtp = (phone, code) => otp('otp-check', { phone, code })
 

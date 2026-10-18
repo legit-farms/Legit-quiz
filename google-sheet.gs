@@ -31,7 +31,7 @@ const COUPON_MIN_ORDER = '500' // ₹ the cart must reach before the coupon work
 const MAX_PRIZES_PER_HOUR = 50 // safety cap: the web app URL is public, so stop anyone farming coupons
 const SHOPIFY_API = '2026-07'
 const GRAPH_API = 'v23.0' // Meta Graph API version for WhatsApp
-const OTP_REQUIRED = false // same as otpEnabled in src/leads.js; while false, prizes don't need a verified number
+const OTP_REQUIRED = true // same as otpEnabled in src/leads.js; while false, prizes don't need a verified number
 
 function doPost(e) {
   let lead
@@ -263,13 +263,13 @@ function deliverOtp(phone, code) {
 // ---------- OTP via Chatrace ----------
 // Chatrace can't send a template by API directly, so the code goes into a contact custom field
 // and a Chatrace flow sends the quiz_otp template with that field. Set up in Chatrace once:
-//   1. Settings > Custom fields: add a Text field named otp_code
+//   1. Settings > Custom fields: add a Text field named otp
 //   2. Flows: make a flow "Quiz OTP" whose only step is a WhatsApp template message, template quiz_otp,
-//      with {{otp_code}} as the body variable and as the "Copy code" button value
+//      with {{otp}} as the body variable and as the "Copy code" button value
 // then add script properties CHATRACE_TOKEN (Settings > API access token) and CHATRACE_FLOW_ID
 // (run testChatrace to list the flow IDs). Optional: CHATRACE_API if your panel has its own API address.
 
-const CHATRACE_OTP_FIELD = 'otp_code'
+const CHATRACE_OTP_FIELD = 'otp'
 
 function chatraceOtp(phone, code) {
   const number = '+91' + digits(phone)
@@ -306,7 +306,7 @@ function chatrace(method, path, body) {
 }
 
 // Checks the Chatrace token and setup without sending anything: logs the flows (pick the
-// Quiz OTP one for CHATRACE_FLOW_ID) and makes the otp_code custom field if it's missing.
+// Quiz OTP one for CHATRACE_FLOW_ID) and makes the otp custom field if it's missing.
 function testChatrace() {
   Logger.log('FLOWS: ' + JSON.stringify(chatrace('get', '/accounts/flows')))
   let field = chatrace('get', '/accounts/custom_fields/name/' + CHATRACE_OTP_FIELD)
