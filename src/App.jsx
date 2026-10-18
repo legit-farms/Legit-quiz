@@ -303,7 +303,7 @@ function Home({ player, onChangePlayer, onPick }) {
           <p>5 quick questions. 1 minute.</p>
           <div className="hero-prizes">
             <span>
-              <i className="chip-egg" aria-hidden="true" /> ₹303 off coupon
+              <i className="chip-egg" aria-hidden="true" /> ₹303 off on orders of ₹500+
             </span>
             <span>🚜 Score 3+ for a farm tour</span>
           </div>
@@ -764,7 +764,7 @@ function Result({ quiz, results, prize, name, onRetry }) {
               tone="egg"
               icon={<img src={eggBox} alt="" />}
               kicker={hasTour ? 'Prize 1' : 'Your prize'}
-              title="₹303 off coupon"
+              title="₹303 off on orders of ₹500 and above"
               worth="₹303"
               code={prize.eggCode}
               loading={loading}
