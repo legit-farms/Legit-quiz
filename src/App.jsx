@@ -104,6 +104,23 @@ function SiteAd() {
   )
 }
 
+// Catches made-up numbers like 9999999999, 9898989898, 9876543210 or 9000000001
+// (no OTP for now, so this is the only check on the number).
+function looksFake(phone) {
+  if (new Set(phone).size < 3) return true
+  if (/(\d)\1{5}/.test(phone)) return true
+  if (/^(\d\d)\1{4}$/.test(phone) || /^(\d{5})\1$/.test(phone)) return true
+  let up = 1
+  let down = 1
+  for (let i = 1; i < phone.length; i++) {
+    const step = phone[i] - phone[i - 1]
+    up = step === 1 || step === -9 ? up + 1 : 1
+    down = step === -1 || step === 9 ? down + 1 : 1
+    if (up >= 7 || down >= 7) return true
+  }
+  return false
+}
+
 function Details({ quiz, onSubmit, onBack }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -147,6 +164,10 @@ function Details({ quiz, onSubmit, onBack }) {
     }
     if (!/^[6-9]\d{9}$/.test(phone)) {
       setError('Please enter a valid 10-digit mobile number.')
+      return
+    }
+    if (looksFake(phone)) {
+      setError("That doesn't look like a real mobile number. Please enter your own number.")
       return
     }
     if (!otpEnabled) {
