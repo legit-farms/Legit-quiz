@@ -294,6 +294,10 @@ function checkWhatsAppAccount() {
   Logger.log('TEMPLATE: ' + JSON.stringify(templates))
   Logger.log(`  want status APPROVED, category AUTHENTICATION, language = WHATSAPP_LANG (now "${PropertiesService.getScriptProperties().getProperty('WHATSAPP_LANG') || 'en'}")`)
 
+  // can_send_message BLOCKED/LIMITED lists the reason, e.g. a missing or failed payment method
+  Logger.log('ACCOUNT HEALTH: ' + JSON.stringify(graph('get', `${waba}?fields=name,account_review_status,health_status`)))
+  Logger.log('  want can_send_message AVAILABLE for every entity; anything else names the problem')
+
   Logger.log('SUBSCRIBE APP FOR WEBHOOKS: ' + JSON.stringify(graph('post', `${waba}/subscribed_apps`)))
   Logger.log('SUBSCRIBED APPS: ' + JSON.stringify(graph('get', `${waba}/subscribed_apps`)))
 }
