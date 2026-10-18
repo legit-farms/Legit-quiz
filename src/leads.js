@@ -77,7 +77,9 @@ async function otp(action, body) {
   if (!out.ok) throw new Error(out.error || 'Something went wrong')
 }
 
-export const otpEnabled = Boolean(SHEET_URL)
+// OTP is switched off for now: players go straight from details to the quiz.
+// Set back to Boolean(SHEET_URL) to turn WhatsApp verification on again.
+export const otpEnabled = false
 export const sendOtp = (phone) => otp('otp-send', { phone })
 export const checkOtp = (phone, code) => otp('otp-check', { phone, code })
 
