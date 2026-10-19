@@ -303,7 +303,7 @@ function Home({ player, onChangePlayer, onPick }) {
           <p>5 quick questions. 1 minute.</p>
           <div className="hero-prizes">
             <span>
-              <i className="chip-egg" aria-hidden="true" /> ₹303 off on orders of ₹500+
+              <i className="chip-egg" aria-hidden="true" /> ₹303 off on all products
             </span>
             <span>🚜 Score 3+ for a farm tour</span>
           </div>
@@ -764,14 +764,14 @@ function Result({ quiz, results, prize, name, onRetry }) {
               tone="egg"
               icon={<img src={eggBox} alt="" />}
               kicker={hasTour ? 'Prize 1' : 'Your prize'}
-              title="₹303 off on orders of ₹500 and above"
+              title="₹303 off your whole order"
               worth="₹303"
               code={prize.eggCode}
               loading={loading}
               action={{ label: 'Shop with my coupon', url: prize.eggCode && couponShopUrl(prize.eggCode) }}
               steps={[
                 'Tap “Shop with my coupon”. Your code is applied for you.',
-                'Add Legit Farms products worth ₹500 or more to your cart.',
+                'Add any Legit Farms products to your cart.',
                 'At checkout ₹303 comes off your order. Place it and you’re done!',
               ]}
             />

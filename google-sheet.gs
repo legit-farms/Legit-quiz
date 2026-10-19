@@ -27,7 +27,6 @@ const HEADERS = ['ID', 'Time', 'Name', 'Phone', 'Product', 'Score', 'Coupon code
 const TOUR_SCORE = 3 // same as TOUR_SCORE in src/App.jsx
 const CODE_HOURS = 24
 const COUPON_AMOUNT = '303' // ₹ off the whole order, works on any products
-const COUPON_MIN_ORDER = '500' // ₹ the cart must reach before the coupon works
 const MAX_PRIZES_PER_HOUR = 50 // safety cap: the web app URL is public, so stop anyone farming coupons
 const SHOPIFY_API = '2026-07'
 const GRAPH_API = 'v23.0' // Meta Graph API version for WhatsApp
@@ -137,7 +136,6 @@ function createEggDiscount(code, expires, lead) {
     usageLimit: 1,
     appliesOncePerCustomer: true,
     context: { all: 'ALL' },
-    minimumRequirement: { subtotal: { greaterThanOrEqualToSubtotal: COUPON_MIN_ORDER } },
     customerGets: {
       value: { discountAmount: { amount: COUPON_AMOUNT, appliesOnEachItem: false } },
       items: { all: true },
